@@ -12,12 +12,18 @@ export default function ProjectPlanning({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState("")
   const [history, setHistory] = useState([])
-  const [fieldError, setFieldError] = useState("")
+  const [error, setError] = useState("")
 
   const handleAskGuide = async () => {
-    if (!projectIdea.trim()) { setFieldError("Please enter your project idea first."); return }
-    if (!message.trim()) { setFieldError("Please type a question before asking the helpline."); return }
-    setFieldError("")
+    if (!projectIdea.trim()) {
+      setError("Please describe your project idea before continuing.")
+      return
+    }
+    if (!message.trim()) {
+      setError("Please type a question before asking the helpline.")
+      return
+    }
+    setError("")
     setLoading(true)
     const result = await api.guideProject(sessionId, projectIdea, message, progress)
     setHistory(prev => [...prev, { message, guidance: result }])
@@ -101,9 +107,15 @@ export default function ProjectPlanning({ onNavigate }) {
             fontSize: "14px", resize: "vertical", marginBottom: "12px"
           }}
         />
-        {fieldError && (
-          <p style={{ color: "#C0392B", fontFamily: "Arial", fontSize: "12px", marginBottom: "8px" }}>
-            {fieldError}
+        {error && (
+          <p style={{
+            color: "#C0392B",
+            fontSize: "13px",
+            marginTop: "8px",
+            fontFamily: "Arial",
+            marginBottom: "8px"
+          }}>
+            {error}
           </p>
         )}
         <button className="btn-orange" onClick={handleAskGuide} disabled={loading}>

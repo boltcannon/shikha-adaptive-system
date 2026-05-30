@@ -1,16 +1,16 @@
 import React from "react"
 import { useUnit } from "../context/UnitContext"
 
-// Maps the display name shown in the dashboard to the key stored in completedTemplates
-const TEMPLATE_KEYS = {
-  "Provocation":     "provocation",
-  "NCL":             "ncl",
-  "Analysis":        "analysis",
-  "Discussion":      "discussion",
-  "Mastery Gate":    "masteryGate",
-  "Project Planning":"projectPlanning",
-  "RAC":             "rac",
-  "Reflection":      "reflection"
+// Bug 2 — full display names mapped to stored keys (no string manipulation that breaks camelCase)
+const TEMPLATE_KEY_MAP = {
+  "Provocation"                    : "provocation",
+  "New Content Learning"           : "ncl",
+  "Analysis"                       : "analysis",
+  "Discussion"                     : "discussion",
+  "Mastery Gate"                   : "masteryGate",
+  "Project Planning"               : "projectPlanning",
+  "Research and Artifact Creation" : "rac",
+  "Reflection and Celebration"     : "reflection"
 }
 
 export default function TeacherDashboard({ onBack }) {
@@ -52,8 +52,8 @@ export default function TeacherDashboard({ onBack }) {
           <div className="card">
             <h2 className="heading-2" style={{ marginBottom: "16px" }}>Student Progress</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {Object.keys(TEMPLATE_KEYS).map(t => {
-                const done = performance.completedTemplates.includes(TEMPLATE_KEYS[t])
+              {Object.keys(TEMPLATE_KEY_MAP).map(t => {
+                const done = performance.completedTemplates.includes(TEMPLATE_KEY_MAP[t])
                 return (
                   <div key={t} style={{
                     display: "flex",

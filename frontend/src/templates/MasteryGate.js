@@ -13,22 +13,58 @@ const MASTERY_ROUNDS = [
   { subtopic: "application",   dimension: "skills",    level: "hard" },
 ]
 
+// Bug 6 — subtopic progress pills (spec-defined labels)
+const SUBTOPICS = [
+  { key: "natural",    label: "Natural Numbers" },
+  { key: "integers",   label: "Integers" },
+  { key: "comparison", label: "Comparison" },
+  { key: "arithmetic", label: "Operations" },
+  { key: "properties", label: "Properties" },
+  { key: "lcm",        label: "LCM and HCF" }
+]
+
+const PILL_STYLE = {
+  padding: "4px 10px",
+  borderRadius: "16px",
+  fontSize: "11px",
+  fontWeight: "bold",
+  fontFamily: "Arial"
+}
+
+function pillColors(status) {
+  if (status === "passed")  return { background: "#D5F5E3", color: "#1E8449" }
+  if (status === "failed")  return { background: "#FADBD8", color: "#C0392B" }
+  if (status === "current") return { background: "#FEF9E7", color: "#E87722" }
+  return { background: "#F2F3F4", color: "#BDC3C7" }
+}
+
 export default function MasteryGate({ onNavigate }) {
-  const { sessionId, unitInput, addCompletedTemplate, updatePerformance } = useUnit()
+  const { sessionId, addCompletedTemplate, updatePerformance } = useUnit()
   const [question, setQuestion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [feedback, setFeedback] = useState(null)
   const [checking, setChecking] = useState(false)
   const [round, setRound] = useState(0)
+  // Bug 1 — score is only ever set via newScore; never double-counted
   const [score, setScore] = useState(0)
   const [done, setDone] = useState(false)
-  const [roundResults, setRoundResults] = useState([])
+
+  // Bug 6 — per-subtopic status: pending | current | passed | failed
+  const [subtopicStatus, setSubtopicStatus] = useState({
+    natural: "current",   // round 0 starts here
+    integers: "pending",
+    comparison: "pending",
+    arithmetic: "pending",
+    properties: "pending",
+    lcm: "pending"
+  })
 
   const loadQuestion = (r) => {
     const { subtopic, dimension, level } = MASTERY_ROUNDS[r]
     setLoading(true)
     setFeedback(null)
     api.generateMasteryQuestion(sessionId, subtopic, dimension, level)
+      // Bug 10 — always spread so QuestionCard's useEffect fires reliably
       .then(res => { setQuestion({ ...res }); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -46,15 +82,27 @@ export default function MasteryGate({ onNavigate }) {
       sessionId, question.text, question.correct_answer,
       option, subtopic, dimension, level
     )
-    if (result.is_correct) setScore(s => s + 1)
-    setRoundResults(prev => [...prev, result.is_correct])
+    // Bug 1 — compute newScore once; use it everywhere — no double-counting
+    const newScore = result.is_correct ? score + 1 : score
+    setScore(newScore)
     setFeedback(result)
     setChecking(false)
   }
 
   const handleNext = () => {
     const nextRound = round + 1
+
+    // Bug 6 — update pill status: mark current as passed/failed, advance next to current
+    const currentKey = SUBTOPICS[round]?.key
+    const nextKey    = SUBTOPICS[nextRound]?.key
+    setSubtopicStatus(prev => ({
+      ...prev,
+      ...(currentKey ? { [currentKey]: feedback?.is_correct ? "passed" : "failed" } : {}),
+      ...(nextKey && nextRound < MASTERY_ROUNDS.length ? { [nextKey]: "current" } : {})
+    }))
+
     if (nextRound >= MASTERY_ROUNDS.length) {
+      // Bug 1 — score already correct; no addition needed here
       const result = `${score} / ${MASTERY_ROUNDS.length}`
       updatePerformance("masteryGateResult", result)
       setDone(true)
@@ -72,7 +120,7 @@ export default function MasteryGate({ onNavigate }) {
   if (loading) return <LoadingScreen message="Generating mastery question..." />
 
   if (done) {
-    const total = MASTERY_ROUNDS.length
+    const total  = MASTERY_ROUNDS.length
     const passed = score >= Math.ceil(total * 0.75)
     return (
       <div>
@@ -98,27 +146,13 @@ export default function MasteryGate({ onNavigate }) {
     <div>
       <TemplateHeader template="MASTERY GATE" subtitle={`Round ${round + 1} of ${MASTERY_ROUNDS.length}`} />
 
-      {/* Subtopic progress pills */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
-        {MASTERY_ROUNDS.map((r, i) => {
-          const isPast = i < round
-          const isCurrent = i === round
-          const passed = isPast ? roundResults[i] : null
-          return (
-            <span key={i} style={{
-              padding: "4px 12px",
-              borderRadius: "16px",
-              fontSize: "12px",
-              fontFamily: "Arial",
-              fontWeight: isCurrent ? "bold" : "normal",
-              background: isCurrent ? "#E87722" : isPast ? (passed ? "#D5F5E3" : "#FADBD8") : "#F2F3F4",
-              color: isCurrent ? "white" : isPast ? (passed ? "#1E8449" : "#C0392B") : "#95A5A6",
-              border: `1px solid ${isCurrent ? "#E87722" : isPast ? (passed ? "#1E8449" : "#C0392B") : "#E5E7E9"}`
-            }}>
-              {isPast ? (passed ? "✓" : "✗") : isCurrent ? "▶" : "○"} {r.subtopic} ({r.level})
-            </span>
-          )
-        })}
+      {/* Bug 6 — subtopic progress pills */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+        {SUBTOPICS.map(st => (
+          <span key={st.key} style={{ ...PILL_STYLE, ...pillColors(subtopicStatus[st.key]) }}>
+            {st.label}
+          </span>
+        ))}
       </div>
 
       <div className="card" style={{ background: "#1A5276", marginBottom: "16px" }}>
@@ -136,7 +170,15 @@ export default function MasteryGate({ onNavigate }) {
         <QuestionCard question={question} onAnswer={handleAnswer} loading={checking} />
       )}
       {checking && <LoadingScreen message="Checking your answer..." />}
-      {feedback && <FeedbackCard feedback={feedback} onNext={handleNext} />}
+
+      {/* Bug 8 — isLast tells FeedbackCard to show "See My Results →" on the final round */}
+      {feedback && (
+        <FeedbackCard
+          feedback={feedback}
+          onNext={handleNext}
+          isLast={round === MASTERY_ROUNDS.length - 1}
+        />
+      )}
     </div>
   )
 }

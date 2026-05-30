@@ -9,7 +9,6 @@ export default function Analysis({ onNavigate }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentQ, setCurrentQ] = useState(0)
-  const [responses, setResponses] = useState({})
   const [input, setInput] = useState("")
   const [done, setDone] = useState(false)
   const [submitError, setSubmitError] = useState(false)
@@ -24,7 +23,6 @@ export default function Analysis({ onNavigate }) {
   const handleSubmit = () => {
     if (!input.trim()) { setSubmitError(true); return }
     setSubmitError(false)
-    setResponses(prev => ({ ...prev, [currentQ]: input }))
     setInput("")
     if (currentQ + 1 >= (data?.guiding_questions?.length || 0)) {
       setDone(true)

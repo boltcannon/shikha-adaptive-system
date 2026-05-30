@@ -185,7 +185,14 @@ export default function NCL({ onNavigate }) {
       />
 
       {checkingAnswer && <LoadingScreen message="Checking your answer..." />}
-      {feedback && <FeedbackCard feedback={feedback} onNext={handleNext} />}
+      {/* Bug 8 — isLast so the final question shows "See My Results →" */}
+      {feedback && (
+        <FeedbackCard
+          feedback={feedback}
+          onNext={handleNext}
+          isLast={currentQ === (data?.questions?.length ?? 1) - 1}
+        />
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import React from "react"
 
-// nextLabel is optional — defaults to "Next Question →"
-export default function FeedbackCard({ feedback, onNext, nextLabel }) {
+// Bug 8 — isLast shows "See My Results →" on the final question instead of "Next Question →"
+export default function FeedbackCard({ feedback, onNext, isLast }) {
   if (!feedback) return null
 
   const isCorrect = feedback.is_correct
@@ -64,7 +64,7 @@ export default function FeedbackCard({ feedback, onNext, nextLabel }) {
           fontSize: "14px"
         }}
       >
-        {nextLabel || "Next Question →"}
+        {isLast ? "See My Results →" : "Next Question →"}
       </button>
     </div>
   )
