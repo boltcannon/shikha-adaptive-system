@@ -91,6 +91,20 @@ export const api = {
     return r.json()
   },
 
+  checkOpenEnded: async (sessionId, template, question, response) => {
+    const r = await fetch(`${BASE_URL}/check/open-ended`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        template,
+        question,
+        response
+      })
+    })
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(

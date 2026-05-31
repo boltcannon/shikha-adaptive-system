@@ -3,12 +3,16 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import LoadingScreen from "../components/LoadingScreen"
 import TemplateHeader from "../components/TemplateHeader"
+import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Reflection({ onNavigate }) {
   const { sessionId, performance, addCompletedTemplate } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [answers, setAnswers] = useState({})
+  // AI feedback per reflection question, keyed by question index
+  const [reflFeedback, setReflFeedback] = useState({})
+  const [checkingRefl, setCheckingRefl] = useState({})
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
@@ -23,6 +27,15 @@ export default function Reflection({ onNavigate }) {
       .then(res => { setData(res); setLoading(false) })
       .catch(() => setLoading(false))
   }, [sessionId]) // eslint-disable-line
+
+  const checkReflection = async (i, question) => {
+    const text = answers[i] || ""
+    if (!text.trim()) return
+    setCheckingRefl(prev => ({ ...prev, [i]: true }))
+    const result = await api.checkOpenEnded(sessionId, "Reflection", question, text)
+    setReflFeedback(prev => ({ ...prev, [i]: result }))
+    setCheckingRefl(prev => ({ ...prev, [i]: false }))
+  }
 
   const handleFinish = () => {
     addCompletedTemplate("reflection")
@@ -69,7 +82,10 @@ export default function Reflection({ onNavigate }) {
           </p>
           <textarea
             value={answers[i] || ""}
-            onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+            onChange={e => {
+              setAnswers(prev => ({ ...prev, [i]: e.target.value }))
+              setReflFeedback(prev => ({ ...prev, [i]: null }))
+            }}
             placeholder="Write your reflection here..."
             rows={3}
             style={{
@@ -77,6 +93,13 @@ export default function Reflection({ onNavigate }) {
               border: "1px solid #BDC3C7", fontFamily: "Arial",
               fontSize: "13px", resize: "vertical"
             }}
+          />
+          <OpenEndedFeedback
+            onCheck={() => checkReflection(i, q)}
+            checking={!!checkingRefl[i]}
+            feedback={reflFeedback[i] || null}
+            disabled={!(answers[i] || "").trim()}
+            buttonLabel="Reflect deeper"
           />
         </div>
       ))}

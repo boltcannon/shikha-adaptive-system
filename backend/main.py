@@ -11,6 +11,7 @@ from pymongo import MongoClient
 
 from framework.mat_engine import (
     check_answer,
+    check_open_ended_response,
     generate_analysis,
     generate_discussion,
     generate_mastery_question,
@@ -209,6 +210,20 @@ async def answer_check(answer_input: AnswerInput):
         answer_input.dimension,
         answer_input.level,
         session["performance"],
+    )
+
+
+@app.post("/check/open-ended")
+async def check_open_ended(data: dict):
+    """AI feedback on any open-ended student response (provocation, analysis, discussion, reflection)."""
+    session_id = data.get("session_id", "")
+    session = _get_session(session_id)
+    return await check_open_ended_response(
+        unit_input=session["unit_input"],
+        template=data.get("template", ""),
+        question=data.get("question", ""),
+        student_response=data.get("response", ""),
+        performance=session["performance"],
     )
 
 

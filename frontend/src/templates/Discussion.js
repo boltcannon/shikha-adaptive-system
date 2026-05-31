@@ -3,6 +3,7 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import LoadingScreen from "../components/LoadingScreen"
 import TemplateHeader from "../components/TemplateHeader"
+import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Discussion({ onNavigate }) {
   const { sessionId, addCompletedTemplate } = useUnit()
@@ -16,6 +17,10 @@ export default function Discussion({ onNavigate }) {
   // Bug 4 — synthesis textareas, one per prompt
   const [synthesisResponses, setSynthesisResponses] = useState(["", "", ""])
 
+  // AI feedback on the reasoning argument
+  const [argFeedback, setArgFeedback] = useState(null)
+  const [checkingArg, setCheckingArg] = useState(false)
+
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
     api.generateDiscussion(sessionId)
@@ -25,6 +30,19 @@ export default function Discussion({ onNavigate }) {
 
   const updateSynthesis = (i, value) =>
     setSynthesisResponses(prev => prev.map((v, idx) => idx === i ? value : v))
+
+  const checkArgument = async () => {
+    if (!reasoning.trim()) return
+    setCheckingArg(true)
+    const result = await api.checkOpenEnded(
+      sessionId,
+      "Discussion",
+      data?.discussion_question || "",
+      reasoning
+    )
+    setArgFeedback(result)
+    setCheckingArg(false)
+  }
 
   const handleContinue = () => {
     addCompletedTemplate("discussion")
@@ -74,7 +92,7 @@ export default function Discussion({ onNavigate }) {
           return (
             <div
               key={i}
-              onClick={() => setSelectedPosition(i)}
+              onClick={() => { setSelectedPosition(i); setArgFeedback(null) }}
               style={{
                 background: isSelected ? "#FEF9E7" : "white",
                 border: `2px solid ${isSelected ? "#E87722" : "#BDC3C7"}`,
@@ -123,7 +141,7 @@ export default function Discussion({ onNavigate }) {
           </p>
           <textarea
             value={reasoning}
-            onChange={e => setReasoning(e.target.value)}
+            onChange={e => { setReasoning(e.target.value); setArgFeedback(null) }}
             placeholder="Why do you think this? Use evidence..."
             rows={4}
             style={{
@@ -131,6 +149,13 @@ export default function Discussion({ onNavigate }) {
               borderRadius: "8px", border: "1px solid #BDC3C7",
               fontFamily: "Arial", fontSize: "14px", resize: "vertical"
             }}
+          />
+          <OpenEndedFeedback
+            onCheck={checkArgument}
+            checking={checkingArg}
+            feedback={argFeedback}
+            disabled={!reasoning.trim()}
+            buttonLabel="Check my argument"
           />
         </div>
       )}

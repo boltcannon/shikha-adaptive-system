@@ -346,6 +346,41 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+OPEN_ENDED_CHECK_PROMPT = """
+{system_base}
+
+TASK: Review this student's open-ended response
+and give warm encouraging feedback.
+
+Template: {template}
+Question: {question}
+Student's response: {student_response}
+Chapter: {chapter}
+Context: {context}
+
+Rules:
+- If the response is empty or too short (under 10 words):
+  Gently encourage them to write more
+  Do not accept blank responses
+- If the response shows genuine thinking:
+  Acknowledge what is good about it specifically
+  Ask one follow-up question to deepen their thinking
+- If the response is off-topic:
+  Gently redirect without making them feel wrong
+- Keep feedback to 2-3 sentences maximum
+- Always warm and encouraging tone
+- Never say "wrong" or "incorrect" for open-ended responses
+  There are no wrong answers — only shallow and deep ones
+
+Return ONLY valid JSON:
+{{
+  "quality": "empty/shallow/good/excellent",
+  "feedback": "string — warm specific feedback",
+  "follow_up": "string — one question to go deeper",
+  "encourage_more": false
+}}
+"""
+
 REFLECTION_PROMPT = """
 {system_base}
 

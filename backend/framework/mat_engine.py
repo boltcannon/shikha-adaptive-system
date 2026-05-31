@@ -14,6 +14,7 @@ from .prompts import (
     ANALYSIS_PROMPT,
     PROJECT_GUIDANCE_PROMPT,
     REFLECTION_PROMPT,
+    OPEN_ENDED_CHECK_PROMPT,
 )
 
 # Load .env from the backend directory (two levels up from this file)
@@ -166,6 +167,22 @@ async def guide_project(
         message=message,
     )
     return await asyncio.to_thread(call_claude, prompt)
+
+
+async def check_open_ended_response(
+    unit_input, template, question, student_response, performance={}
+):
+    """Check an open-ended text response with warm AI feedback."""
+    system_base = build_system_base(unit_input, performance)
+    prompt = OPEN_ENDED_CHECK_PROMPT.format(
+        system_base=system_base,
+        template=template,
+        question=question,
+        student_response=student_response,
+        chapter=unit_input.chapter,
+        context=unit_input.context,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 400)
 
 
 async def generate_reflection(
