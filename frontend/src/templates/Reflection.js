@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
-import LoadingScreen from "../components/LoadingScreen"
+import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
@@ -42,7 +42,7 @@ export default function Reflection({ onNavigate }) {
     onNavigate("teacherInput")
   }
 
-  if (loading) return <LoadingScreen message="Generating your personalised reflection..." />
+  if (loading) return <SimpleLoader />
   if (!data) return <p style={{ fontFamily: "Arial", color: "#C0392B" }}>Failed to generate reflection.</p>
 
   return (

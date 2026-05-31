@@ -60,6 +60,14 @@ export const api = {
     return r.json()
   },
 
+  generateMasteryAll: async (sessionId) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/mastery-all/${sessionId}`,
+      { method: "POST" }
+    )
+    return r.json()
+  },
+
   generateMasteryQuestion: async (sessionId, subtopic, dimension, level) => {
     const r = await fetch(
       `${BASE_URL}/generate/mastery-question/${sessionId}` +

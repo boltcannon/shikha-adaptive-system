@@ -238,12 +238,86 @@ async def get_discussion(session_id: str):
     )
 
 
+@app.post("/generate/mastery-all/{session_id}")
+async def generate_all_mastery_questions(session_id: str):
+    """Pre-generate all mastery questions for a session so MasteryGate loads instantly."""
+    session = _get_session(session_id)
+    unit_input = session["unit_input"]
+    cache_key = make_cache_key(unit_input) + "_mastery"
+
+    # ── Cache HIT ─────────────────────────────────────────
+    cached = cache_collection.find_one({"cache_key": cache_key})
+    if cached:
+        cached.pop("_id", None)
+        session["mastery_questions"] = cached["questions"]
+        return {"source": "cache", "questions": cached["questions"]}
+
+    # ── Generate 24 questions in parallel ─────────────────
+    # 6 subtopics × 4 questions (knowledge easy/medium + skills medium/hard)
+    subtopics = [
+        "natural and whole numbers",
+        "integers",
+        "comparison and ordering",
+        "arithmetic operations",
+        "properties of numbers",
+        "lcm and hcf",
+    ]
+
+    tasks = []
+    for sub in subtopics:
+        tasks.append(generate_mastery_question(unit_input, sub, "knowledge", "easy",   session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, sub, "knowledge", "medium", session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, sub, "skills",    "medium", session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, sub, "skills",    "hard",   session["performance"]))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    def _safe(r):
+        return r if not isinstance(r, Exception) else None
+
+    questions = {}
+    idx = 0
+    for sub in subtopics:
+        key = sub.replace(" ", "_")
+        questions[key] = {
+            "knowledge": [_safe(results[idx]),     _safe(results[idx + 1])],
+            "skills":    [_safe(results[idx + 2]), _safe(results[idx + 3])],
+        }
+        idx += 4
+
+    # Log any failures
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            print(f"  ⚠  mastery result[{i}] failed: {r}")
+
+    # ── Cache ─────────────────────────────────────────────
+    cache_collection.insert_one({
+        "cache_key":  cache_key,
+        "questions":  questions,
+        "created_at": datetime.datetime.utcnow(),
+    })
+
+    session["mastery_questions"] = questions
+    return {"source": "generated", "questions": questions}
+
+
 @app.post("/generate/mastery-question/{session_id}")
 async def get_mastery_question(
     session_id: str, subtopic: str, dimension: str, level: str
 ):
     session = _get_session(session_id)
-    # Mastery questions vary by subtopic/level — always fresh
+
+    # Serve from pre-generated pool if available (populated by generate_all_mastery_questions)
+    if "mastery_questions" in session:
+        key = subtopic.replace(" ", "_")
+        pre = session["mastery_questions"]
+        if key in pre and dimension in pre[key]:
+            available = [q for q in pre[key][dimension] if q is not None]
+            if available:
+                import random
+                return random.choice(available)
+
+    # Fall back to fresh generation
     return await generate_mastery_question(
         session["unit_input"], subtopic, dimension, level,
         session["performance"],

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
-import LoadingScreen from "../components/LoadingScreen"
+import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
@@ -60,7 +60,7 @@ export default function Provocation({ onNavigate }) {
   // Bug 3 — gate requires ALL norms checked; observation is optional
   const allNormsChecked = checkedNorms.every(n => n)
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <SimpleLoader />
   if (error) return <p style={{ color: "#C0392B", fontFamily: "Arial" }}>{error}</p>
   if (!data) return null
 

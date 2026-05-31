@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
-import LoadingScreen from "../components/LoadingScreen"
+import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
@@ -49,11 +49,15 @@ export default function Discussion({ onNavigate }) {
     onNavigate("masteryGate")
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <SimpleLoader />
   if (!data) return <p style={{ fontFamily: "Arial", color: "#C0392B" }}>Failed to load Discussion.</p>
 
   const perspectives = data.perspectives || []
   const synthesisPrompts = data.synthesis_prompts || []
+
+  // Fix 1 — synthesis must be filled (≥20 chars each) before continuing
+  const canContinue = synthesisPrompts.length === 0 ||
+    synthesisPrompts.every((_, i) => (synthesisResponses[i] || "").trim().length >= 20)
 
   return (
     <div>
@@ -166,30 +170,68 @@ export default function Discussion({ onNavigate }) {
           <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#1A5276", marginBottom: "12px" }}>
             Go deeper — synthesis questions
           </p>
-          {synthesisPrompts.map((prompt, i) => (
-            <div key={i} style={{ marginBottom: "16px" }}>
-              <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#2C3E50", marginBottom: "6px", lineHeight: "1.5" }}>
-                {i + 1}. {prompt}
-              </p>
-              <textarea
-                placeholder="Write your thoughts..."
-                value={synthesisResponses[i] || ""}
-                onChange={e => updateSynthesis(i, e.target.value)}
-                rows={2}
-                style={{
-                  width: "100%", boxSizing: "border-box", padding: "8px",
-                  borderRadius: "6px", border: "1px solid #AED6F1",
-                  fontFamily: "Arial", fontSize: "13px",
-                  resize: "vertical", background: "white"
-                }}
-              />
-            </div>
-          ))}
+          {synthesisPrompts.map((prompt, i) => {
+            const charCount = (synthesisResponses[i] || "").trim().length
+            const met = charCount >= 20
+            return (
+              <div key={i} style={{ marginBottom: "16px" }}>
+                <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#2C3E50", marginBottom: "6px", lineHeight: "1.5" }}>
+                  {i + 1}. {prompt}
+                </p>
+                <textarea
+                  placeholder="Write your thoughts..."
+                  value={synthesisResponses[i] || ""}
+                  onChange={e => updateSynthesis(i, e.target.value)}
+                  rows={2}
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "8px",
+                    borderRadius: "6px",
+                    border: `1px solid ${met ? "#1E8449" : "#AED6F1"}`,
+                    fontFamily: "Arial", fontSize: "13px",
+                    resize: "vertical", background: "white"
+                  }}
+                />
+                {/* Fix 1 — character counter */}
+                <p style={{
+                  fontSize: "11px",
+                  color: met ? "#1E8449" : "#BDC3C7",
+                  fontFamily: "Arial",
+                  textAlign: "right",
+                  marginTop: "3px"
+                }}>
+                  {met ? "✓ Good answer" : `${charCount}/20 minimum characters`}
+                </p>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      <button className="btn-primary" onClick={handleContinue}
-        style={{ width: "100%", padding: "14px" }}>
+      {/* Fix 1 — gated until all synthesis responses meet the 20-char minimum */}
+      {!canContinue && (
+        <p style={{
+          fontSize: "13px",
+          color: "#E87722",
+          fontFamily: "Arial",
+          textAlign: "center",
+          marginBottom: "8px"
+        }}>
+          Please answer all synthesis questions before continuing.
+          Each answer needs at least a sentence.
+        </p>
+      )}
+      <button
+        onClick={handleContinue}
+        disabled={!canContinue}
+        style={{
+          width: "100%", padding: "14px",
+          background: canContinue ? "#1A5276" : "#BDC3C7",
+          color: "white",
+          border: "none", borderRadius: "8px",
+          cursor: canContinue ? "pointer" : "not-allowed",
+          fontFamily: "Arial", fontSize: "14px", fontWeight: "bold"
+        }}
+      >
         Continue to Mastery Gate →
       </button>
     </div>
