@@ -1,27 +1,24 @@
 import React, { useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
+import CHAPTERS from "../data/chapters"
 
 const GRADES = [
-  "Class 1","Class 2","Class 3","Class 4","Class 5","Class 6",
-  "Class 7","Class 8","Class 9","Class 10","Class 11","Class 12"
-]
-
-const SUBJECTS = [
-  "Mathematics","Science","English","Social Studies",
-  "History","Geography","Physics","Chemistry","Biology"
+  "Class 1", "Class 2", "Class 3", "Class 4",
+  "Class 5", "Class 6", "Class 7", "Class 8",
+  "Class 9", "Class 10", "Class 11", "Class 12"
 ]
 
 const CONTEXT_SUGGESTIONS = [
-  "Cricket","Football","Cooking","Space","Farming",
-  "Movies","Music","Fashion","Technology","Travel"
+  "Cricket", "Football", "Cooking", "Space", "Farming",
+  "Movies", "Music", "Fashion", "Technology", "Travel"
 ]
 
 export default function TeacherInput({ onNavigate }) {
   const { setSessionId, setUnitInput } = useUnit()
   const [form, setForm] = useState({
     grade: "Class 6",
-    subject: "Mathematics",
+    subject: "",
     chapter: "",
     context: ""
   })
@@ -29,14 +26,21 @@ export default function TeacherInput({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // Derive available subjects and chapters from the selected grade/subject
+  const availableSubjects = CHAPTERS[form.grade]
+    ? Object.keys(CHAPTERS[form.grade])
+    : []
+
+  const availableChapters = CHAPTERS[form.grade]?.[form.subject] || []
+
   const handleNoContextToggle = (checked) => {
     setNoContext(checked)
     setForm(prev => ({ ...prev, context: checked ? "general" : "" }))
   }
 
   const handleGenerate = async () => {
-    if (!form.chapter) {
-      setError("Please fill in the Chapter field")
+    if (!form.chapter || form.chapter === "") {
+      setError("Please select a chapter")
       return
     }
     setLoading(true)
@@ -52,13 +56,14 @@ export default function TeacherInput({ onNavigate }) {
     setLoading(false)
   }
 
-  const inputStyle = {
+  const selectStyle = {
     width: "100%",
     padding: "10px",
     borderRadius: "8px",
     border: "1px solid #BDC3C7",
     fontFamily: "Arial",
-    fontSize: "14px"
+    fontSize: "14px",
+    appearance: "auto"
   }
 
   const labelStyle = {
@@ -74,55 +79,95 @@ export default function TeacherInput({ onNavigate }) {
       <div style={{ marginBottom: "32px" }}>
         <h1 className="heading-1">Adaptive Learning Framework</h1>
         <p className="subtext">
-          Enter the details below. The system will generate a complete learning
-          unit using Shikha's MAT framework — Provocation through Reflection.
+          Select a grade, subject and chapter below. The system will generate a
+          complete learning unit using Shikha's MAT framework — Provocation
+          through Reflection.
         </p>
       </div>
 
       <div className="card">
-        {/* Grade + Subject row */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "16px",
-          marginBottom: "16px"
-        }}>
-          <div>
-            <label style={labelStyle}>Grade</label>
-            <select
-              value={form.grade}
-              onChange={e => setForm({ ...form, grade: e.target.value })}
-              style={inputStyle}
-            >
-              {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Subject</label>
-            <select
-              value={form.subject}
-              onChange={e => setForm({ ...form, subject: e.target.value })}
-              style={inputStyle}
-            >
-              {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
+        {/* ── Grade ─────────────────────────────────────────── */}
+        <div style={{ marginBottom: "16px" }}>
+          <label style={labelStyle}>Grade</label>
+          <select
+            value={form.grade}
+            onChange={e => setForm({
+              ...form,
+              grade: e.target.value,
+              subject: "",   // reset subject when grade changes
+              chapter: ""    // reset chapter when grade changes
+            })}
+            style={selectStyle}
+          >
+            {GRADES.map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Chapter */}
+        {/* ── Subject ───────────────────────────────────────── */}
         <div style={{ marginBottom: "16px" }}>
-          <label style={labelStyle}>Chapter</label>
-          <input
-            type="text"
-            placeholder="e.g. Number System, Photosynthesis, World War II..."
+          <label style={labelStyle}>Subject</label>
+          <select
+            value={form.subject}
+            onChange={e => setForm({
+              ...form,
+              subject: e.target.value,
+              chapter: ""    // reset chapter when subject changes
+            })}
+            style={{
+              ...selectStyle,
+              background: availableSubjects.length === 0 ? "#F2F3F4" : "white",
+              color: form.subject ? "#2C3E50" : "#95A5A6"
+            }}
+          >
+            <option value="">Select a subject...</option>
+            {availableSubjects.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          {availableSubjects.length === 0 && (
+            <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#95A5A6", marginTop: "4px" }}>
+              No subjects available for this grade.
+            </p>
+          )}
+        </div>
+
+        {/* ── Chapter ───────────────────────────────────────── */}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={labelStyle}>
+            Chapter
+            {availableChapters.length > 0 && (
+              <span style={{ fontWeight: "normal", color: "#95A5A6", marginLeft: "6px" }}>
+                ({availableChapters.length} chapters)
+              </span>
+            )}
+          </label>
+          <select
             value={form.chapter}
             onChange={e => setForm({ ...form, chapter: e.target.value })}
-            style={inputStyle}
-          />
+            disabled={!form.subject || availableChapters.length === 0}
+            style={{
+              ...selectStyle,
+              background: (!form.subject || availableChapters.length === 0)
+                ? "#F2F3F4" : "white",
+              color: form.chapter ? "#2C3E50" : "#95A5A6",
+              cursor: (!form.subject || availableChapters.length === 0)
+                ? "not-allowed" : "pointer"
+            }}
+          >
+            <option value="">
+              {!form.subject
+                ? "Select a subject first..."
+                : "Select a chapter..."}
+            </option>
+            {availableChapters.map(ch => (
+              <option key={ch} value={ch}>{ch}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Context */}
+        {/* ── Context ───────────────────────────────────────── */}
         <div style={{ marginBottom: "24px" }}>
           <label style={labelStyle}>
             Context
@@ -137,7 +182,12 @@ export default function TeacherInput({ onNavigate }) {
             disabled={noContext}
             onChange={e => setForm({ ...form, context: e.target.value })}
             style={{
-              ...inputStyle,
+              width: "100%",
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #BDC3C7",
+              fontFamily: "Arial",
+              fontSize: "14px",
               marginBottom: "8px",
               background: noContext ? "#F2F3F4" : "white",
               color: noContext ? "#95A5A6" : "#2C3E50",
@@ -189,7 +239,6 @@ export default function TeacherInput({ onNavigate }) {
             </span>
           </label>
 
-          {/* Helper note */}
           <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#95A5A6", lineHeight: "1.5" }}>
             The AI will connect all learning to this context.
             Leave blank or check 'No context' for general examples.
@@ -205,8 +254,14 @@ export default function TeacherInput({ onNavigate }) {
         <button
           className="btn-primary"
           onClick={handleGenerate}
-          disabled={loading}
-          style={{ width: "100%", padding: "14px", fontSize: "15px" }}
+          disabled={loading || !form.chapter}
+          style={{
+            width: "100%",
+            padding: "14px",
+            fontSize: "15px",
+            opacity: (!form.chapter && !loading) ? 0.5 : 1,
+            cursor: !form.chapter ? "not-allowed" : "pointer"
+          }}
         >
           {loading ? "Creating unit..." : "Generate Unit with AI →"}
         </button>
