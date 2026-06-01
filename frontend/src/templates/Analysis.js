@@ -6,7 +6,7 @@ import TemplateHeader from "../components/TemplateHeader"
 import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Analysis({ onNavigate }) {
-  const { sessionId, addCompletedTemplate } = useUnit()
+  const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentQ, setCurrentQ] = useState(0)
@@ -50,6 +50,7 @@ export default function Analysis({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("analysis")
+    saveStudentProgress({ current_screen: "discussion" })
     onNavigate("discussion")
   }
 

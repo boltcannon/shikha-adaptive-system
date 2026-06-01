@@ -15,7 +15,7 @@ const NORMS = [
 ]
 
 export default function Provocation({ onNavigate }) {
-  const { sessionId, addCompletedTemplate } = useUnit()
+  const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -38,6 +38,7 @@ export default function Provocation({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("provocation")
+    saveStudentProgress({ current_screen: "ncl" })
     onNavigate("ncl")
   }
 

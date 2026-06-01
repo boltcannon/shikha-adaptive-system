@@ -6,7 +6,7 @@ import TemplateHeader from "../components/TemplateHeader"
 import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Reflection({ onNavigate }) {
-  const { sessionId, performance, addCompletedTemplate } = useUnit()
+  const { sessionId, performance, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [answers, setAnswers] = useState({})
@@ -39,6 +39,7 @@ export default function Reflection({ onNavigate }) {
 
   const handleFinish = () => {
     addCompletedTemplate("reflection")
+    saveStudentProgress({ current_screen: "done", reflection_done: true })
     onNavigate("teacherInput")
   }
 

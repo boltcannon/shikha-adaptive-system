@@ -5,7 +5,7 @@ import LoadingScreen from "../components/LoadingScreen"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function ProjectPlanning({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, updatePerformance } = useUnit()
+  const { sessionId, addCompletedTemplate, updatePerformance, saveStudentProgress } = useUnit()
   const [projectIdea, setProjectIdea] = useState("")
   const [message, setMessage] = useState("")
   const [guidance, setGuidance] = useState(null)
@@ -36,6 +36,7 @@ export default function ProjectPlanning({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("projectPlanning")
+    saveStudentProgress({ current_screen: "rac", project_idea: projectIdea })
     onNavigate("rac")
   }
 

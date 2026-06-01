@@ -3,7 +3,7 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
 export default function UnitLoader({ onNavigate }) {
-  const { sessionId, unitInput } = useUnit()
+  const { sessionId, unitInput, setGeneratedContent } = useUnit()
 
   useEffect(() => {
     if (!sessionId) {
@@ -18,6 +18,7 @@ export default function UnitLoader({ onNavigate }) {
       const result = await api.generateAll(sessionId)
       // result.source is "cache" or "generated" — both mean success
       if (result.source) {
+        if (result.content) setGeneratedContent(result.content)
         setTimeout(() => onNavigate("provocation"), 1000)
       } else {
         onNavigate("teacherInput")

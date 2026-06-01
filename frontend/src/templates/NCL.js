@@ -9,7 +9,7 @@ import FeedbackCard from "../components/FeedbackCard"
 const DEFAULT_SUBTOPIC = "core concepts"
 
 export default function NCL({ onNavigate }) {
-  const { sessionId, unitInput, addCompletedTemplate } = useUnit()
+  const { sessionId, unitInput, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentQ, setCurrentQ] = useState(0)
@@ -70,6 +70,10 @@ export default function NCL({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("ncl")
+    saveStudentProgress({
+      current_screen: "analysis",
+      exit_ticket_score: data ? `${score}/${data.questions.length}` : null
+    })
     onNavigate("analysis")
   }
 

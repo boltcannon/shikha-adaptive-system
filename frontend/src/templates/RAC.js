@@ -10,7 +10,7 @@ const STEPS = [
 ]
 
 export default function RAC({ onNavigate }) {
-  const { performance, addCompletedTemplate } = useUnit()
+  const { performance, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [completedSteps, setCompletedSteps] = useState([])
   const [notes, setNotes] = useState({})
   const [activeStep, setActiveStep] = useState("research")
@@ -23,6 +23,7 @@ export default function RAC({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("rac")
+    saveStudentProgress({ current_screen: "reflection" })
     onNavigate("reflection")
   }
 

@@ -57,7 +57,7 @@ function pickQuestion(pregen, subtopic, dimension, level) {
 }
 
 export default function MasteryGate({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, updatePerformance } = useUnit()
+  const { sessionId, addCompletedTemplate, updatePerformance, saveStudentProgress } = useUnit()
 
   // Fix 2 — pre-generation state
   const [masteryReady, setMasteryReady]             = useState(false)
@@ -168,6 +168,10 @@ export default function MasteryGate({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("masteryGate")
+    saveStudentProgress({
+      current_screen: "projectPlanning",
+      mastery_gate_result: `${score} / ${MASTERY_ROUNDS.length}`
+    })
     onNavigate("projectPlanning")
   }
 

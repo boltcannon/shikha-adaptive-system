@@ -113,6 +113,53 @@ export const api = {
     return r.json()
   },
 
+  // ── Class + student management ──────────────────────────
+  createClass: async (sessionId) => {
+    const r = await fetch(`${BASE_URL}/class/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId })
+    })
+    return r.json()
+  },
+
+  getClass: async (classCode) => {
+    const r = await fetch(`${BASE_URL}/class/${classCode}`)
+    return r.json()
+  },
+
+  joinClass: async (classCode, name) => {
+    const r = await fetch(`${BASE_URL}/class/${classCode}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    })
+    return r.json()
+  },
+
+  saveProgress: async (studentId, progress) => {
+    const r = await fetch(`${BASE_URL}/student/progress`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: studentId, progress })
+    })
+    return r.json()
+  },
+
+  getClassResults: async (classCode) => {
+    const r = await fetch(`${BASE_URL}/class/${classCode}/results`)
+    return r.json()
+  },
+
+  updateContent: async (classCode, template, content) => {
+    const r = await fetch(`${BASE_URL}/class/${classCode}/content`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template, content })
+    })
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(

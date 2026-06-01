@@ -2,6 +2,8 @@ import asyncio
 import datetime
 import hashlib
 import os
+import random
+import string
 import uuid
 
 from dotenv import load_dotenv
@@ -29,8 +31,11 @@ load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 mongo_client = MongoClient(MONGODB_URI)
 db = mongo_client["shikha_framework"]
-cache_collection = db["unit_cache"]
+cache_collection    = db["unit_cache"]
 sessions_collection = db["sessions"]
+classes_collection  = db["classes"]
+students_collection = db["students"]
+progress_collection = db["progress"]
 
 # ── FastAPI app ───────────────────────────────────────────
 app = FastAPI(
@@ -51,6 +56,20 @@ sessions = {}
 
 
 # ── Helpers ───────────────────────────────────────────────
+def generate_class_code() -> str:
+    letters = random.choices(string.ascii_uppercase, k=3)
+    digits  = random.choices(string.digits, k=3)
+    return f"{''.join(letters)}-{''.join(digits)}"
+
+
+def _unit_input_dict(unit_input) -> dict:
+    """Serialize a UnitInput Pydantic model to a plain dict (supports v1 and v2)."""
+    try:
+        return unit_input.model_dump()   # Pydantic v2
+    except AttributeError:
+        return unit_input.dict()         # Pydantic v1
+
+
 def make_cache_key(unit_input: UnitInput) -> str:
     raw = (
         f"{unit_input.grade}_{unit_input.subject}"
@@ -388,3 +407,178 @@ async def cache_stats():
 async def clear_cache():
     result = cache_collection.delete_many({})
     return {"message": f"Cleared {result.deleted_count} cached units"}
+
+
+# ──────────────────────────────────────────────────────────
+# Class management
+# ──────────────────────────────────────────────────────────
+
+@app.post("/class/create")
+async def create_class(data: dict):
+    """Teacher creates a class; students join with the returned code."""
+    session_id = data.get("session_id")
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = sessions[session_id]
+
+    # Return existing class record for this session if one already exists
+    existing = classes_collection.find_one({"session_id": session_id})
+    if existing:
+        existing.pop("_id", None)
+        return {
+            "class_code"    : existing["class_code"],
+            "session_id"    : session_id,
+            "shareable_link": f"/join/{existing['class_code']}",
+            "unit_input"    : existing["unit_input"],
+        }
+
+    # Generate a unique class code
+    class_code = generate_class_code()
+    while classes_collection.find_one({"class_code": class_code}):
+        class_code = generate_class_code()
+
+    unit_dict = _unit_input_dict(session["unit_input"])
+    class_record = {
+        "session_id"       : session_id,
+        "class_code"       : class_code,
+        "unit_input"       : unit_dict,
+        "generated_content": session.get("generated_content", {}),
+        "created_at"       : datetime.datetime.utcnow(),
+        "students"         : [],
+        "status"           : "active",
+    }
+    classes_collection.insert_one(class_record)
+
+    return {
+        "class_code"    : class_code,
+        "session_id"    : session_id,
+        "shareable_link": f"/join/{class_code}",
+        "unit_input"    : unit_dict,
+    }
+
+
+@app.get("/class/{class_code}")
+async def get_class(class_code: str):
+    """Student looks up a class by code before entering their name."""
+    record = classes_collection.find_one({"class_code": class_code.upper()})
+    if not record:
+        raise HTTPException(status_code=404, detail="Class not found. Check your code.")
+    return {
+        "class_code": record["class_code"],
+        "unit_input": record["unit_input"],
+        "session_id": record["session_id"],
+    }
+
+
+@app.post("/class/{class_code}/join")
+async def join_class(class_code: str, data: dict):
+    """Student joins with their name. Restores progress for returning students."""
+    student_name = data.get("name", "").strip()
+    if not student_name:
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    record = classes_collection.find_one({"class_code": class_code.upper()})
+    if not record:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    session_id = record["session_id"]
+
+    # Restore session in memory if it was lost (e.g. server restart)
+    if session_id not in sessions:
+        from models import UnitInput
+        ui = record["unit_input"]
+        sessions[session_id] = {
+            "unit_input"       : UnitInput(**ui),
+            "performance"      : {},
+            "generated_content": record.get("generated_content", {}),
+        }
+
+    # Returning student — restore progress
+    existing = students_collection.find_one({
+        "class_code"  : class_code.upper(),
+        "student_name": student_name,
+    })
+    if existing:
+        existing.pop("_id", None)
+        return {
+            "student_id"  : existing["student_id"],
+            "student_name": student_name,
+            "session_id"  : session_id,
+            "progress"    : existing.get("progress", {}),
+            "returning"   : True,
+        }
+
+    # New student
+    student_id = str(uuid.uuid4())
+    default_progress = {
+        "current_screen"      : "provocation",
+        "completed_templates" : [],
+        "exit_ticket_score"   : None,
+        "mastery_gate_result" : None,
+        "project_idea"        : "",
+        "reflection_done"     : False,
+    }
+    students_collection.insert_one({
+        "student_id"  : student_id,
+        "student_name": student_name,
+        "class_code"  : class_code.upper(),
+        "session_id"  : session_id,
+        "progress"    : default_progress,
+        "joined_at"   : datetime.datetime.utcnow(),
+    })
+    return {
+        "student_id"  : student_id,
+        "student_name": student_name,
+        "session_id"  : session_id,
+        "progress"    : default_progress,
+        "returning"   : False,
+    }
+
+
+@app.post("/student/progress")
+async def save_progress(data: dict):
+    """Save student progress after each completed template."""
+    student_id = data.get("student_id")
+    progress   = data.get("progress", {})
+    students_collection.update_one(
+        {"student_id": student_id},
+        {"$set": {"progress": progress, "updated_at": datetime.datetime.utcnow()}},
+    )
+    return {"saved": True}
+
+
+@app.get("/class/{class_code}/results")
+async def get_class_results(class_code: str):
+    """Teacher fetches all student progress for a class."""
+    students = list(students_collection.find(
+        {"class_code": class_code.upper()}, {"_id": 0}
+    ))
+    return {
+        "class_code"    : class_code.upper(),
+        "total_students": len(students),
+        "students"      : students,
+    }
+
+
+@app.put("/class/{class_code}/content")
+async def update_content(class_code: str, data: dict):
+    """Teacher edits AI-generated content before students see it."""
+    record = classes_collection.find_one({"class_code": class_code.upper()})
+    if not record:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    template    = data.get("template")
+    new_content = data.get("content")
+
+    classes_collection.update_one(
+        {"class_code": class_code.upper()},
+        {"$set": {f"generated_content.{template}": new_content}},
+    )
+
+    # Sync in-memory session
+    session_id = record["session_id"]
+    if session_id in sessions:
+        sessions[session_id].setdefault("generated_content", {})[template] = new_content
+
+    return {"updated": True, "template": template}
