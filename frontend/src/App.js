@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
+import { Routes, Route, useParams, useMatch } from "react-router-dom"
 import { UnitProvider } from "./context/UnitContext"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
@@ -15,23 +16,23 @@ import Reflection from "./templates/Reflection"
 import TeacherDashboard from "./screens/TeacherDashboard"
 import "./App.css"
 
+function StudentJoinWrapper({ onNavigate }) {
+  const { classCode } = useParams()
+  return (
+    <StudentJoin
+      onNavigate={onNavigate}
+      initialCode={classCode?.toUpperCase() || ""}
+    />
+  )
+}
+
 export default function App() {
   const [screen, setScreen]             = useState("teacherInput")
   const [mode, setMode]                 = useState("student")
-  const [initialCode, setInitialCode]   = useState("")
   const [showSharePanel, setShowSharePanel] = useState(false)
 
-  // Detect /join/:classCode in the URL on first load
-  useEffect(() => {
-    const path = window.location.pathname
-    if (path.startsWith("/join/")) {
-      const code = path.split("/join/")[1]?.trim()
-      if (code) {
-        setInitialCode(code.toUpperCase())
-        setScreen("studentJoin")
-      }
-    }
-  }, [])
+  // Hide "Share with Class" when the student is on a /join/:classCode URL
+  const isJoinRoute = useMatch("/join/:classCode")
 
   const navigateTo = (s) => {
     if (s === "teacherDashboard") { setMode("teacher"); return }
@@ -43,18 +44,17 @@ export default function App() {
       return <TeacherDashboard onBack={() => setMode("student")} />
     }
     switch (screen) {
-      case "studentJoin":    return <StudentJoin onNavigate={navigateTo} initialCode={initialCode} />
-      case "teacherInput":   return <TeacherInput onNavigate={navigateTo} />
-      case "unitLoader":     return <UnitLoader onNavigate={navigateTo} />
-      case "provocation":    return <Provocation onNavigate={navigateTo} />
-      case "ncl":            return <NCL onNavigate={navigateTo} />
-      case "analysis":       return <Analysis onNavigate={navigateTo} />
-      case "discussion":     return <Discussion onNavigate={navigateTo} />
-      case "masteryGate":    return <MasteryGate onNavigate={navigateTo} />
-      case "projectPlanning":return <ProjectPlanning onNavigate={navigateTo} />
-      case "rac":            return <RAC onNavigate={navigateTo} />
-      case "reflection":     return <Reflection onNavigate={navigateTo} />
-      default:               return <TeacherInput onNavigate={navigateTo} />
+      case "teacherInput":    return <TeacherInput onNavigate={navigateTo} />
+      case "unitLoader":      return <UnitLoader onNavigate={navigateTo} />
+      case "provocation":     return <Provocation onNavigate={navigateTo} />
+      case "ncl":             return <NCL onNavigate={navigateTo} />
+      case "analysis":        return <Analysis onNavigate={navigateTo} />
+      case "discussion":      return <Discussion onNavigate={navigateTo} />
+      case "masteryGate":     return <MasteryGate onNavigate={navigateTo} />
+      case "projectPlanning": return <ProjectPlanning onNavigate={navigateTo} />
+      case "rac":             return <RAC onNavigate={navigateTo} />
+      case "reflection":      return <Reflection onNavigate={navigateTo} />
+      default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }
 
@@ -76,8 +76,8 @@ export default function App() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* Share with Class button — only in student mode so teacher can see it */}
-          {mode === "student" && screen !== "studentJoin" && (
+          {/* Share with Class — hidden on the student join route */}
+          {mode === "student" && !isJoinRoute && (
             <button
               onClick={() => setShowSharePanel(true)}
               style={{
@@ -105,7 +105,15 @@ export default function App() {
       </div>
 
       <div className="app-container">
-        {renderScreen()}
+        <Routes>
+          {/* Shareable student-join link */}
+          <Route
+            path="/join/:classCode"
+            element={<StudentJoinWrapper onNavigate={navigateTo} />}
+          />
+          {/* All other screens managed by the screen state */}
+          <Route path="*" element={renderScreen()} />
+        </Routes>
       </div>
 
       {/* Teacher share panel overlay */}

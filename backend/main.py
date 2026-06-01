@@ -41,7 +41,7 @@ progress_collection = db["progress"]
 app = FastAPI(
     title="Shikha Adaptive Learning Framework",
     description="AI-powered unit generation using MAT framework",
-    version="2.1.0",
+    version="2.2.0",
 )
 
 app.add_middleware(
@@ -78,10 +78,66 @@ def make_cache_key(unit_input: UnitInput) -> str:
     return hashlib.md5(raw.lower().encode()).hexdigest()
 
 
+# ── Session persistence helpers ───────────────────────────
+def save_session_to_db(session_id: str, session_data: dict):
+    """Persist session to MongoDB so it survives server restarts."""
+    try:
+        unit_input = session_data["unit_input"]
+        ui_dict = (
+            _unit_input_dict(unit_input)
+            if hasattr(unit_input, "model_dump") or hasattr(unit_input, "dict")
+            else unit_input
+        )
+        sessions_collection.update_one(
+            {"session_id": session_id},
+            {"$set": {
+                "session_id"       : session_id,
+                "unit_input"       : ui_dict,
+                "performance"      : session_data.get("performance", {}),
+                "generated_content": session_data.get("generated_content", {}),
+                "mastery_questions": session_data.get("mastery_questions", {}),
+                "updated_at"       : datetime.datetime.utcnow(),
+            }},
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"Failed to save session {session_id}: {e}")
+
+
+def restore_session_from_db(session_id: str):
+    """Restore session from MongoDB into in-memory dict. Returns session or None."""
+    try:
+        record = sessions_collection.find_one({"session_id": session_id})
+        if not record:
+            return None
+        ui = record["unit_input"]
+        session = {
+            "unit_input"       : UnitInput(**ui),
+            "performance"      : record.get("performance", {}),
+            "generated_content": record.get("generated_content", {}),
+            "mastery_questions": record.get("mastery_questions", {}),
+        }
+        sessions[session_id] = session
+        print(f"Restored session {session_id} from MongoDB")
+        return session
+    except Exception as e:
+        print(f"Failed to restore session {session_id}: {e}")
+        return None
+
+
+def get_session(session_id: str):
+    """Return session from memory, restoring from MongoDB if needed. Returns None if not found."""
+    if session_id in sessions:
+        return sessions[session_id]
+    return restore_session_from_db(session_id)
+
+
 def _get_session(session_id: str) -> dict:
-    if session_id not in sessions:
+    """Get session or raise 404."""
+    session = get_session(session_id)
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return sessions[session_id]
+    return session
 
 
 # ──────────────────────────────────────────────────────────
@@ -91,7 +147,7 @@ def _get_session(session_id: str) -> dict:
 def health():
     return {
         "system": "Shikha Adaptive Learning Framework",
-        "version": "2.1",
+        "version": "2.2",
         "status": "running",
     }
 
@@ -101,14 +157,16 @@ def health():
 # ──────────────────────────────────────────────────────────
 @app.post("/unit/create")
 async def create_unit(unit_input: UnitInput):
-    session_id = str(uuid.uuid4())
-    sessions[session_id] = {
-        "unit_input": unit_input,
-        "performance": {},
-        "current_template": "provocation",
+    session_id   = str(uuid.uuid4())
+    session_data = {
+        "unit_input"         : unit_input,
+        "performance"        : {},
+        "current_template"   : "provocation",
         "completed_templates": [],
-        "generated_content": {},
+        "generated_content"  : {},
     }
+    sessions[session_id] = session_data
+    save_session_to_db(session_id, session_data)
     return {"session_id": session_id, "message": "Unit created successfully"}
 
 
@@ -117,9 +175,9 @@ async def create_unit(unit_input: UnitInput):
 # ──────────────────────────────────────────────────────────
 @app.post("/unit/generate-all/{session_id}")
 async def generate_all_templates(session_id: str):
-    session = _get_session(session_id)
+    session    = _get_session(session_id)
     unit_input = session["unit_input"]
-    cache_key = make_cache_key(unit_input)
+    cache_key  = make_cache_key(unit_input)
 
     # ── Cache HIT ─────────────────────────────────────────
     cached = cache_collection.find_one({"cache_key": cache_key})
@@ -130,6 +188,7 @@ async def generate_all_templates(session_id: str):
             {"$inc": {"hit_count": 1}}
         )
         session["generated_content"] = cached["content"]
+        save_session_to_db(session_id, session)
         return {
             "source": "cache",
             "message": "Loaded from cache instantly",
@@ -187,6 +246,7 @@ async def generate_all_templates(session_id: str):
     print(f"Cached     : {cache_key}")
 
     session["generated_content"] = content
+    save_session_to_db(session_id, session)
     return {
         "source":  "generated",
         "message": "Unit generated and cached",
@@ -236,7 +296,7 @@ async def answer_check(answer_input: AnswerInput):
 async def check_open_ended(data: dict):
     """AI feedback on any open-ended student response (provocation, analysis, discussion, reflection)."""
     session_id = data.get("session_id", "")
-    session = _get_session(session_id)
+    session    = _get_session(session_id)
     return await check_open_ended_response(
         unit_input=session["unit_input"],
         template=data.get("template", ""),
@@ -260,9 +320,9 @@ async def get_discussion(session_id: str):
 @app.post("/generate/mastery-all/{session_id}")
 async def generate_all_mastery_questions(session_id: str):
     """Pre-generate all mastery questions for a session so MasteryGate loads instantly."""
-    session = _get_session(session_id)
+    session    = _get_session(session_id)
     unit_input = session["unit_input"]
-    cache_key = make_cache_key(unit_input) + "_mastery"
+    cache_key  = make_cache_key(unit_input) + "_mastery"
 
     # ── Cache HIT ─────────────────────────────────────────
     cached = cache_collection.find_one({"cache_key": cache_key})
@@ -417,14 +477,16 @@ async def clear_cache():
 async def create_class(data: dict):
     """Teacher creates a class; students join with the returned code."""
     session_id = data.get("session_id")
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    print(f"[class/create] session_id={session_id}")
 
-    session = sessions[session_id]
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required. Please generate a unit first.")
 
     # Return existing class record for this session if one already exists
+    # (checked before the session-in-memory guard so it works after a server restart)
     existing = classes_collection.find_one({"session_id": session_id})
     if existing:
+        print(f"[class/create] returning existing class: {existing['class_code']}")
         existing.pop("_id", None)
         return {
             "class_code"    : existing["class_code"],
@@ -432,6 +494,16 @@ async def create_class(data: dict):
             "shareable_link": f"/join/{existing['class_code']}",
             "unit_input"    : existing["unit_input"],
         }
+
+    # Session must be available (memory or MongoDB) to create a new class record
+    session = get_session(session_id)
+    if not session:
+        print(f"[class/create] session not found in memory or MongoDB")
+        raise HTTPException(
+            status_code=404,
+            detail="Session expired. Please generate the unit again to create a class."
+        )
+    print(f"[class/create] session found, creating new class record")
 
     # Generate a unique class code
     class_code = generate_class_code()
@@ -449,6 +521,7 @@ async def create_class(data: dict):
         "status"           : "active",
     }
     classes_collection.insert_one(class_record)
+    print(f"[class/create] created class: {class_code}")
 
     return {
         "class_code"    : class_code,
@@ -486,13 +559,14 @@ async def join_class(class_code: str, data: dict):
 
     # Restore session in memory if it was lost (e.g. server restart)
     if session_id not in sessions:
-        from models import UnitInput
-        ui = record["unit_input"]
-        sessions[session_id] = {
-            "unit_input"       : UnitInput(**ui),
-            "performance"      : {},
-            "generated_content": record.get("generated_content", {}),
-        }
+        if not restore_session_from_db(session_id):
+            # Fall back to class record (for sessions pre-dating DB persistence)
+            ui = record["unit_input"]
+            sessions[session_id] = {
+                "unit_input"       : UnitInput(**ui),
+                "performance"      : {},
+                "generated_content": record.get("generated_content", {}),
+            }
 
     # Returning student — restore progress
     existing = students_collection.find_one({
@@ -578,7 +652,63 @@ async def update_content(class_code: str, data: dict):
 
     # Sync in-memory session
     session_id = record["session_id"]
-    if session_id in sessions:
-        sessions[session_id].setdefault("generated_content", {})[template] = new_content
+    session    = get_session(session_id)
+    if session:
+        session.setdefault("generated_content", {})[template] = new_content
+        save_session_to_db(session_id, session)
 
     return {"updated": True, "template": template}
+
+
+# ──────────────────────────────────────────────────────────
+# Part 3 — Regenerate a single template for a class
+# ──────────────────────────────────────────────────────────
+
+@app.post("/class/{class_code}/regenerate")
+async def regenerate_template(class_code: str, data: dict):
+    """Regenerate a single AI template for a class (teacher-triggered)."""
+    template = data.get("template")
+    if not template:
+        raise HTTPException(status_code=400, detail="template is required")
+
+    class_record = classes_collection.find_one({"class_code": class_code.upper()})
+    if not class_record:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    session_id = class_record["session_id"]
+    session    = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session expired. Cannot regenerate.")
+
+    unit_input  = session["unit_input"]
+    performance = session.get("performance", {})
+
+    # Dispatch to the correct generator
+    new_content = None
+    if template == "provocation":
+        new_content = await generate_provocation(unit_input, performance)
+    elif template == "analysis":
+        new_content = await generate_analysis(unit_input, performance)
+    elif template == "discussion":
+        new_content = await generate_discussion(unit_input, performance)
+    elif template == "reflection":
+        new_content = await generate_reflection(unit_input, "", "", "", "", performance)
+    elif template == "ncl_1":
+        new_content = await generate_ncl(unit_input, "subtopic 1", performance)
+    elif template == "ncl_2":
+        new_content = await generate_ncl(unit_input, "subtopic 2", performance)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown template: {template}")
+
+    # Persist to class record in MongoDB
+    classes_collection.update_one(
+        {"class_code": class_code.upper()},
+        {"$set": {f"generated_content.{template}": new_content}},
+    )
+
+    # Sync in-memory session and persist session
+    session.setdefault("generated_content", {})[template] = new_content
+    save_session_to_db(session_id, session)
+
+    print(f"[regenerate] {class_code} / {template} regenerated")
+    return {"template": template, "new_content": new_content}

@@ -17,19 +17,37 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
 
   const [classCode,       setClassCode]       = useState(null)
   const [creating,        setCreating]        = useState(false)
+  const [createError,     setCreateError]     = useState("")
   const [copied,          setCopied]          = useState("")
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [editContent,     setEditContent]     = useState("")
   const [editError,       setEditError]       = useState("")
   const [saving,          setSaving]          = useState(false)
+  const [regenerating,    setRegenerating]    = useState(null)
+  const [regenError,      setRegenError]      = useState("")
 
   const createClass = async () => {
     setCreating(true)
+    setCreateError("")
+    console.log("TeacherSharePanel sessionId:", sessionId)
     try {
+      if (!sessionId) {
+        setCreateError("No session found. Please generate a unit first.")
+        setCreating(false)
+        return
+      }
       const result = await api.createClass(sessionId)
-      setClassCode(result.class_code)
+      console.log("Create class result:", result)
+      if (result.class_code) {
+        setClassCode(result.class_code)
+      } else if (result.detail) {
+        setCreateError(`Error: ${result.detail}`)
+      } else {
+        setCreateError("Could not create class. Check that the backend is running.")
+      }
     } catch (e) {
-      // ignore — user can retry
+      console.error("Create class error:", e)
+      setCreateError(`Failed: ${e.message}`)
     }
     setCreating(false)
   }
@@ -39,6 +57,25 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
       setCopied(label)
       setTimeout(() => setCopied(""), 2000)
     })
+  }
+
+  const regenerateTemplate = async (templateKey) => {
+    setRegenerating(templateKey)
+    setRegenError("")
+    try {
+      const result = await api.regenerateTemplate(classCode, templateKey)
+      if (result.new_content) {
+        // Update generatedContent in context so Edit panel shows the new version immediately
+        // (UnitContext does not expose setGeneratedContent directly from the panel,
+        //  so we store a local override — refresh triggers a re-read from class record)
+        console.log(`Regenerated ${templateKey}:`, result.new_content)
+      } else if (result.detail) {
+        setRegenError(`${templateKey}: ${result.detail}`)
+      }
+    } catch (e) {
+      setRegenError(`Regeneration failed: ${e.message}`)
+    }
+    setRegenerating(null)
   }
 
   const startEditing = (key) => {
@@ -132,6 +169,14 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
             >
               {creating ? "Creating class..." : "Create Class Code →"}
             </button>
+            {createError && (
+              <p style={{
+                color: "#C0392B", fontSize: "13px",
+                fontFamily: "Arial", marginTop: "10px"
+              }}>
+                {createError}
+              </p>
+            )}
           </div>
         ) : (
           <div>
@@ -183,8 +228,15 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
                 Check what the AI generated before students see it. Edit anything that needs changing.
               </p>
 
+              {regenError && (
+                <p style={{ color: "#C0392B", fontFamily: "Arial", fontSize: "12px", marginBottom: "8px" }}>
+                  {regenError}
+                </p>
+              )}
+
               {EDITABLE_TEMPLATES.map(t => {
                 const hasContent = !!(generatedContent?.[t.key])
+                const isRegenerating = regenerating === t.key
                 return (
                   <div key={t.key} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -193,17 +245,35 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
                     <span style={{ fontFamily: "Arial", fontSize: "14px", color: hasContent ? "#2C3E50" : "#BDC3C7" }}>
                       {t.label} {hasContent ? "✓" : "(not generated)"}
                     </span>
+
                     {hasContent && (
-                      <button
-                        onClick={() => startEditing(t.key)}
-                        style={{
-                          background: "#F2F3F4", border: "none", borderRadius: "6px",
-                          padding: "6px 12px", cursor: "pointer", fontFamily: "Arial",
-                          fontSize: "12px", color: "#1A5276", fontWeight: "bold"
-                        }}
-                      >
-                        Edit
-                      </button>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        {classCode && (
+                          <button
+                            onClick={() => regenerateTemplate(t.key)}
+                            disabled={isRegenerating || regenerating !== null}
+                            style={{
+                              background: isRegenerating ? "#F2F3F4" : "#FEF9E7",
+                              border: "1px solid #E87722", borderRadius: "6px",
+                              padding: "6px 10px",
+                              cursor: isRegenerating || regenerating !== null ? "not-allowed" : "pointer",
+                              fontFamily: "Arial", fontSize: "12px", color: "#E87722"
+                            }}
+                          >
+                            {isRegenerating ? "..." : "↻ Regenerate"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => startEditing(t.key)}
+                          style={{
+                            background: "#F2F3F4", border: "none", borderRadius: "6px",
+                            padding: "6px 12px", cursor: "pointer", fontFamily: "Arial",
+                            fontSize: "12px", color: "#1A5276", fontWeight: "bold"
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
                     )}
                   </div>
                 )

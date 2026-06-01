@@ -160,6 +160,15 @@ export const api = {
     return r.json()
   },
 
+  regenerateTemplate: async (classCode, template) => {
+    const r = await fetch(`${BASE_URL}/class/${classCode}/regenerate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template })
+    })
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(
