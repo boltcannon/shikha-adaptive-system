@@ -21,6 +21,7 @@ from framework.mat_engine import (
     generate_ncl,
     generate_provocation,
     generate_reflection,
+    generate_subtopics,
     guide_project,
 )
 from models import AnswerInput, ProjectMessage, UnitInput
@@ -244,6 +245,7 @@ async def generate_all_templates(session_id: str):
         generate_reflection(
             unit_input, "", "", "", "", session["performance"]
         ),
+        generate_subtopics(unit_input, session["performance"]),
         return_exceptions=True,
     )
 
@@ -258,6 +260,7 @@ async def generate_all_templates(session_id: str):
         "discussion":     _safe(results[4]),
         "mastery_sample": _safe(results[5]),
         "reflection":     _safe(results[6]),
+        "subtopics":      _safe(results[7]),
     }
 
     # Log any generation errors without crashing
@@ -353,6 +356,22 @@ async def get_discussion(session_id: str):
     )
 
 
+@app.post("/generate/subtopics/{session_id}")
+async def get_subtopics(session_id: str):
+    """Return chapter-specific sub-topics for the Mastery Gate.
+    Served from cache (generated_content) if already available."""
+    session = _get_session(session_id)
+    cached = session.get("generated_content", {}).get("subtopics")
+    if cached:
+        return cached
+    result = await generate_subtopics(
+        session["unit_input"], session.get("performance", {})
+    )
+    session.setdefault("generated_content", {})["subtopics"] = result
+    save_session_to_db(session_id, session)
+    return result
+
+
 @app.post("/generate/mastery-all/{session_id}")
 async def generate_all_mastery_questions(session_id: str):
     """Pre-generate all mastery questions for a session so MasteryGate loads instantly."""
@@ -372,23 +391,40 @@ async def generate_all_mastery_questions(session_id: str):
         session["mastery_questions"] = cached["questions"]
         return {"source": "cache", "questions": cached["questions"]}
 
-    # ── Generate 24 questions in parallel ─────────────────
-    # 6 subtopics × 4 questions (knowledge easy/medium + skills medium/hard)
-    subtopics = [
-        "natural and whole numbers",
-        "integers",
-        "comparison and ordering",
-        "arithmetic operations",
-        "properties of numbers",
-        "lcm and hcf",
-    ]
+    # ── Resolve subtopics dynamically from session ────────────
+    subtopics_data = session.get("generated_content", {}).get("subtopics")
+    if subtopics_data and subtopics_data.get("subtopics"):
+        raw = subtopics_data["subtopics"]
+        subtopic_labels = [st["label"] for st in raw]   # human-readable → passed to Claude
+        subtopic_keys   = [st["key"]   for st in raw]   # snake_case    → used as dict key
+    else:
+        # Fallback: generate subtopics on the fly
+        print(f"[mastery-all] No cached subtopics — generating now...")
+        try:
+            sub_result = await generate_subtopics(unit_input, session.get("performance", {}))
+            raw = sub_result.get("subtopics", [])
+        except Exception as e:
+            print(f"[mastery-all] generate_subtopics failed: {e}; using generic fallback")
+            raw = []
+        if raw:
+            subtopic_labels = [st["label"] for st in raw]
+            subtopic_keys   = [st["key"]   for st in raw]
+            session.setdefault("generated_content", {})["subtopics"] = sub_result
+            save_session_to_db(session_id, session)
+        else:
+            # Last-resort generic fallback so something always renders
+            subtopic_labels = ["Core Concepts", "Key Rules", "Applications", "Problem Solving"]
+            subtopic_keys   = ["core_concepts", "key_rules",  "applications", "problem_solving"]
 
+    print(f"[mastery-all] Using subtopics: {subtopic_labels}")
+
+    # ── Generate 4 questions per subtopic in parallel ─────
     tasks = []
-    for sub in subtopics:
-        tasks.append(generate_mastery_question(unit_input, sub, "knowledge", "easy",   session["performance"]))
-        tasks.append(generate_mastery_question(unit_input, sub, "knowledge", "medium", session["performance"]))
-        tasks.append(generate_mastery_question(unit_input, sub, "skills",    "medium", session["performance"]))
-        tasks.append(generate_mastery_question(unit_input, sub, "skills",    "hard",   session["performance"]))
+    for label in subtopic_labels:
+        tasks.append(generate_mastery_question(unit_input, label, "knowledge", "easy",   session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, label, "knowledge", "medium", session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, label, "skills",    "medium", session["performance"]))
+        tasks.append(generate_mastery_question(unit_input, label, "skills",    "hard",   session["performance"]))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -397,8 +433,7 @@ async def generate_all_mastery_questions(session_id: str):
 
     questions = {}
     idx = 0
-    for sub in subtopics:
-        key = sub.replace(" ", "_")
+    for key in subtopic_keys:
         questions[key] = {
             "knowledge": [_safe(results[idx]),     _safe(results[idx + 1])],
             "skills":    [_safe(results[idx + 2]), _safe(results[idx + 3])],

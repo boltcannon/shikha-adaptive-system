@@ -15,6 +15,7 @@ from .prompts import (
     PROJECT_GUIDANCE_PROMPT,
     REFLECTION_PROMPT,
     OPEN_ENDED_CHECK_PROMPT,
+    SUBTOPICS_PROMPT,
 )
 
 # Load .env from the backend directory (two levels up from this file)
@@ -183,6 +184,16 @@ async def check_open_ended_response(
         context=unit_input.context,
     )
     return await asyncio.to_thread(call_claude, prompt, 400)
+
+
+async def generate_subtopics(unit_input, performance={}):
+    """Generate chapter-specific sub-topics for the Mastery Gate."""
+    prompt = SUBTOPICS_PROMPT.format(
+        grade=unit_input.grade,
+        subject=unit_input.subject,
+        chapter=unit_input.chapter,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 500)
 
 
 async def generate_reflection(

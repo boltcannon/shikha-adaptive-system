@@ -381,6 +381,34 @@ Return ONLY valid JSON:
 }}
 """
 
+SUBTOPICS_PROMPT = """
+You are a curriculum expert for Indian school education.
+
+Grade: {grade}
+Subject: {subject}
+Chapter: {chapter}
+
+Generate the 4-6 main sub-topics that this chapter covers
+in the NCERT curriculum.
+
+Rules:
+- Each sub-topic should be a distinct concept
+- Sub-topics should be in logical learning order
+- Keep names short and clear (2-5 words each)
+- These will be used as mastery gate checkpoints
+
+Return ONLY valid JSON, no other text:
+{{
+  "subtopics": [
+    {{"key": "snake_case_key", "label": "Display Name"}},
+    {{"key": "snake_case_key", "label": "Display Name"}},
+    {{"key": "snake_case_key", "label": "Display Name"}},
+    {{"key": "snake_case_key", "label": "Display Name"}},
+    {{"key": "snake_case_key", "label": "Display Name"}}
+  ]
+}}
+"""
+
 REFLECTION_PROMPT = """
 {system_base}
 
