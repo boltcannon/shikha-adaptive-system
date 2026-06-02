@@ -14,6 +14,7 @@ import ProjectPlanning from "./templates/ProjectPlanning"
 import RAC from "./templates/RAC"
 import Reflection from "./templates/Reflection"
 import TeacherDashboard from "./screens/TeacherDashboard"
+import DevPanel from "./components/DevPanel"
 import "./App.css"
 
 function StudentJoinWrapper({ onNavigate }) {
@@ -54,6 +55,7 @@ export default function App() {
       case "projectPlanning": return <ProjectPlanning onNavigate={navigateTo} />
       case "rac":             return <RAC onNavigate={navigateTo} />
       case "reflection":      return <Reflection onNavigate={navigateTo} />
+      case "studentJoin":     return <StudentJoin onNavigate={navigateTo} initialCode="" />
       default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }
@@ -127,6 +129,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Developer panel — only renders in development (NODE_ENV check inside) */}
+      <DevPanel onNavigate={navigateTo} onModeChange={setMode} />
     </UnitProvider>
   )
 }
