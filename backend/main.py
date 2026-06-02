@@ -703,13 +703,25 @@ async def save_progress(data: dict):
 
 @app.get("/class/{class_code}/results")
 async def get_class_results(class_code: str):
-    """Teacher fetches all student progress for a class."""
+    """Teacher fetches all student progress for a class, with summary stats."""
     students = list(students_collection.find(
         {"class_code": class_code.upper()}, {"_id": 0}
     ))
+    total = len(students)
+    complete = sum(
+        1 for s in students
+        if s.get("progress", {}).get("reflection_done")
+    )
+    in_progress = sum(
+        1 for s in students
+        if len(s.get("progress", {}).get("completed_templates", [])) > 0
+        and not s.get("progress", {}).get("reflection_done")
+    )
     return {
         "class_code"    : class_code.upper(),
-        "total_students": len(students),
+        "total_students": total,
+        "complete"      : complete,
+        "in_progress"   : in_progress,
         "students"      : students,
     }
 

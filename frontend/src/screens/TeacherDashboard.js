@@ -192,20 +192,33 @@ export default function TeacherDashboard({ onBack }) {
             )}
           </div>
 
-          {/* Results table */}
+          {/* Results */}
           {results && (
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <h2 className="heading-2">
-                  Class {results.class_code}
-                </h2>
-                <span style={{
-                  background: "#EBF5FB", color: "#1A5276",
-                  borderRadius: "16px", padding: "4px 12px",
-                  fontFamily: "Arial", fontSize: "13px", fontWeight: "bold"
-                }}>
-                  {results.total_students} student{results.total_students !== 1 ? "s" : ""}
-                </span>
+                <h2 className="heading-2">Class {results.class_code}</h2>
+              </div>
+
+              {/* Summary stats */}
+              <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+                {[
+                  { label: "Total Students", value: results.total_students,  color: "#1A5276" },
+                  { label: "Complete",        value: results.complete ?? 0,   color: "#1E8449" },
+                  { label: "In Progress",     value: results.in_progress ?? 0, color: "#B7950B" },
+                ].map(stat => (
+                  <div key={stat.label} style={{
+                    flex: 1, background: "white", borderRadius: "8px",
+                    padding: "12px", textAlign: "center",
+                    border: `2px solid ${stat.color}30`,
+                  }}>
+                    <p style={{ fontSize: "28px", fontWeight: "bold", color: stat.color, fontFamily: "Arial", margin: 0 }}>
+                      {stat.value}
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#5D6D7E", fontFamily: "Arial", margin: 0 }}>
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               {results.students.length === 0 ? (

@@ -15,7 +15,7 @@ const CONTEXT_SUGGESTIONS = [
 ]
 
 export default function TeacherInput({ onNavigate }) {
-  const { setSessionId, setUnitInput } = useUnit()
+  const { sessionId, setSessionId, setUnitInput, setGeneratedContent } = useUnit()
   const [form, setForm] = useState({
     grade: "Class 6",
     subject: "",
@@ -265,6 +265,31 @@ export default function TeacherInput({ onNavigate }) {
         >
           {loading ? "Creating unit..." : "Generate Unit with AI →"}
         </button>
+
+        {/* Fix 1 — clear existing session so teacher can start fresh */}
+        {sessionId && (
+          <button
+            onClick={() => {
+              setSessionId(null)
+              setUnitInput(null)
+              setGeneratedContent(null)
+            }}
+            style={{
+              width       : "100%",
+              padding     : "10px",
+              background  : "white",
+              color       : "#5D6D7E",
+              border      : "1px solid #BDC3C7",
+              borderRadius: "8px",
+              cursor      : "pointer",
+              fontFamily  : "Arial",
+              fontSize    : "13px",
+              marginTop   : "8px",
+            }}
+          >
+            Clear current unit and start fresh
+          </button>
+        )}
       </div>
 
       {/* How it works */}

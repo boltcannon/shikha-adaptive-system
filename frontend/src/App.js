@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Routes, Route, useParams, useMatch } from "react-router-dom"
-import { UnitProvider } from "./context/UnitContext"
+import { UnitProvider, useUnit } from "./context/UnitContext"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
 import StudentJoin from "./screens/StudentJoin"
@@ -27,17 +27,33 @@ function StudentJoinWrapper({ onNavigate }) {
   )
 }
 
-export default function App() {
-  const [screen, setScreen]             = useState("teacherInput")
-  const [mode, setMode]                 = useState("student")
+// ── Inner app — inside UnitProvider so useUnit() works ──────────
+function AppContent() {
+  const {
+    sessionId, setSessionId,
+    setUnitInput, setGeneratedContent,
+    studentName,
+  } = useUnit()
+
+  const [screen,        setScreen]        = useState("teacherInput")
+  const [mode,          setMode]          = useState("student")
   const [showSharePanel, setShowSharePanel] = useState(false)
 
-  // Hide "Share with Class" when the student is on a /join/:classCode URL
+  // Hide "Share with Class" on /join/:classCode URLs
   const isJoinRoute = useMatch("/join/:classCode")
 
   const navigateTo = (s) => {
     if (s === "teacherDashboard") { setMode("teacher"); return }
     setScreen(s)
+  }
+
+  // Clear session and return to Teacher Input
+  const handleNewUnit = () => {
+    setSessionId(null)
+    setUnitInput(null)
+    setGeneratedContent(null)
+    setScreen("teacherInput")
+    setMode("student")
   }
 
   const renderScreen = () => {
@@ -61,13 +77,14 @@ export default function App() {
   }
 
   return (
-    <UnitProvider>
-      {/* Top nav bar */}
+    <>
+      {/* ── Top nav bar ───────────────────────────────────── */}
       <div style={{
         background: "#1A5276", padding: "12px 24px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        position: "sticky", top: 0, zIndex: 100
+        position: "sticky", top: 0, zIndex: 100,
       }}>
+        {/* Brand */}
         <div>
           <span style={{ color: "#E87722", fontWeight: "bold", fontSize: "12px", fontFamily: "Arial", letterSpacing: "1px" }}>
             SHIKHA ACADEMY
@@ -77,28 +94,57 @@ export default function App() {
           </span>
         </div>
 
+        {/* Right-side controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* Share with Class — hidden on the student join route */}
+
+          {/* Fix 4 — student name while in student mode */}
+          {mode === "student" && studentName && (
+            <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
+              👤 {studentName}
+            </span>
+          )}
+
+          {/* Fix 1 — New Unit (teacher mode + session exists) */}
+          {sessionId && mode === "teacher" && (
+            <button
+              onClick={handleNewUnit}
+              style={{
+                background  : "rgba(255,255,255,0.15)",
+                color       : "white",
+                border      : "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "6px",
+                padding     : "6px 14px",
+                cursor      : "pointer",
+                fontFamily  : "Arial",
+                fontSize    : "13px",
+              }}
+            >
+              ← New Unit
+            </button>
+          )}
+
+          {/* Share with Class — hidden on student join route */}
           {mode === "student" && !isJoinRoute && (
             <button
               onClick={() => setShowSharePanel(true)}
               style={{
                 background: "#E87722", color: "white", border: "none",
                 borderRadius: "6px", padding: "6px 14px",
-                cursor: "pointer", fontFamily: "Arial", fontSize: "13px"
+                cursor: "pointer", fontFamily: "Arial", fontSize: "13px",
               }}
             >
               Share with Class
             </button>
           )}
 
+          {/* Teacher / Student view toggle */}
           <button
             onClick={() => setMode(mode === "student" ? "teacher" : "student")}
             style={{
               background: "rgba(255,255,255,0.15)", color: "white",
               border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
               padding: "6px 14px", cursor: "pointer",
-              fontFamily: "Arial", fontSize: "13px"
+              fontFamily: "Arial", fontSize: "13px",
             }}
           >
             {mode === "student" ? "Teacher View" : "Student View"}
@@ -106,19 +152,18 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Main content ──────────────────────────────────── */}
       <div className="app-container">
         <Routes>
-          {/* Shareable student-join link */}
           <Route
             path="/join/:classCode"
             element={<StudentJoinWrapper onNavigate={navigateTo} />}
           />
-          {/* All other screens managed by the screen state */}
           <Route path="*" element={renderScreen()} />
         </Routes>
       </div>
 
-      {/* Teacher share panel overlay */}
+      {/* ── Teacher share panel overlay ───────────────────── */}
       {showSharePanel && (
         <TeacherSharePanel
           onClose={() => setShowSharePanel(false)}
@@ -130,8 +175,17 @@ export default function App() {
         />
       )}
 
-      {/* Developer panel — only renders in development (NODE_ENV check inside) */}
+      {/* ── Developer panel (dev only) ────────────────────── */}
       <DevPanel onNavigate={navigateTo} onModeChange={setMode} />
+    </>
+  )
+}
+
+// ── Root: UnitProvider wraps AppContent so all hooks work ───────
+export default function App() {
+  return (
+    <UnitProvider>
+      <AppContent />
     </UnitProvider>
   )
 }
