@@ -30,7 +30,11 @@ load_dotenv()
 
 # ── MongoDB ───────────────────────────────────────────────
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-mongo_client = MongoClient(MONGODB_URI)
+mongo_client = MongoClient(
+    MONGODB_URI,
+    serverSelectionTimeoutMS=5000,   # fail fast — don't hang requests for 30 s
+    connectTimeoutMS=5000,
+)
 db = mongo_client["shikha_framework"]
 cache_collection    = db["unit_cache"]
 sessions_collection = db["sessions"]
@@ -201,13 +205,21 @@ async def generate_all_templates(session_id: str):
     cache_key  = make_cache_key(unit_input)
 
     # ── Cache HIT ─────────────────────────────────────────
-    cached = cache_collection.find_one({"cache_key": cache_key})
+    cached = None
+    try:
+        cached = cache_collection.find_one({"cache_key": cache_key})
+    except Exception as e:
+        print(f"Cache read failed (MongoDB unreachable?): {e}")
+
     if cached:
         print(f"Cache HIT  : {cache_key}")
-        cache_collection.update_one(
-            {"cache_key": cache_key},
-            {"$inc": {"hit_count": 1}}
-        )
+        try:
+            cache_collection.update_one(
+                {"cache_key": cache_key},
+                {"$inc": {"hit_count": 1}}
+            )
+        except Exception:
+            pass
         session["generated_content"] = cached["content"]
         save_session_to_db(session_id, session)
         return {
@@ -253,18 +265,21 @@ async def generate_all_templates(session_id: str):
         if isinstance(r, Exception):
             print(f"  ⚠  result[{i}] failed: {r}")
 
-    # ── Persist to MongoDB ────────────────────────────────
-    cache_collection.insert_one({
-        "cache_key":  cache_key,
-        "grade":      unit_input.grade,
-        "subject":    unit_input.subject,
-        "chapter":    unit_input.chapter,
-        "context":    unit_input.context,
-        "content":    content,
-        "created_at": datetime.datetime.utcnow(),
-        "hit_count":  0,
-    })
-    print(f"Cached     : {cache_key}")
+    # ── Persist to MongoDB (best-effort — don't crash if DB is down) ─
+    try:
+        cache_collection.insert_one({
+            "cache_key":  cache_key,
+            "grade":      unit_input.grade,
+            "subject":    unit_input.subject,
+            "chapter":    unit_input.chapter,
+            "context":    unit_input.context,
+            "content":    content,
+            "created_at": datetime.datetime.utcnow(),
+            "hit_count":  0,
+        })
+        print(f"Cached     : {cache_key}")
+    except Exception as e:
+        print(f"Cache write failed (MongoDB unreachable?): {e}")
 
     session["generated_content"] = content
     save_session_to_db(session_id, session)
@@ -346,7 +361,12 @@ async def generate_all_mastery_questions(session_id: str):
     cache_key  = make_cache_key(unit_input) + "_mastery"
 
     # ── Cache HIT ─────────────────────────────────────────
-    cached = cache_collection.find_one({"cache_key": cache_key})
+    cached = None
+    try:
+        cached = cache_collection.find_one({"cache_key": cache_key})
+    except Exception as e:
+        print(f"Mastery cache read failed (MongoDB unreachable?): {e}")
+
     if cached:
         cached.pop("_id", None)
         session["mastery_questions"] = cached["questions"]
@@ -390,12 +410,15 @@ async def generate_all_mastery_questions(session_id: str):
         if isinstance(r, Exception):
             print(f"  ⚠  mastery result[{i}] failed: {r}")
 
-    # ── Cache ─────────────────────────────────────────────
-    cache_collection.insert_one({
-        "cache_key":  cache_key,
-        "questions":  questions,
-        "created_at": datetime.datetime.utcnow(),
-    })
+    # ── Cache (best-effort) ───────────────────────────────
+    try:
+        cache_collection.insert_one({
+            "cache_key":  cache_key,
+            "questions":  questions,
+            "created_at": datetime.datetime.utcnow(),
+        })
+    except Exception as e:
+        print(f"Mastery cache write failed (MongoDB unreachable?): {e}")
 
     session["mastery_questions"] = questions
     return {"source": "generated", "questions": questions}
