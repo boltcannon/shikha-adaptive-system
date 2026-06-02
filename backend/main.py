@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import os
 import random
+import ssl
 import string
 import uuid
 
@@ -35,6 +36,9 @@ mongo_client = MongoClient(
     MONGODB_URI,
     serverSelectionTimeoutMS=5000,   # fail fast — don't hang requests for 30 s
     connectTimeoutMS=5000,
+    socketTimeoutMS=5000,
+    tls=True,
+    tlsAllowInvalidCertificates=True,
 )
 db = mongo_client["shikha_framework"]
 cache_collection    = db["unit_cache"]
