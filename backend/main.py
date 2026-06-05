@@ -335,6 +335,88 @@ async def answer_check(answer_input: AnswerInput):
     )
 
 
+@app.post("/check/answers-batch")
+async def check_answers_batch(data: dict):
+    """
+    Checks all student answers at once.
+    Called once when student submits all questions.
+    Returns results for every question together.
+    Only calls AI for wrong answers (correct ones need no AI feedback).
+    """
+    session_id = data.get("session_id")
+    answers    = data.get("answers", [])
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    unit_input = session["unit_input"]
+    results = []
+
+    for answer in answers:
+        question       = answer.get("question", "")
+        correct_answer = answer.get("correct_answer", "")
+        student_answer = answer.get("student_answer", "")
+        subtopic       = answer.get("subtopic", "")
+        dimension      = answer.get("dimension", "knowledge")
+        level          = answer.get("level", "medium")
+
+        is_correct = student_answer.strip().lower() == correct_answer.strip().lower()
+
+        if is_correct:
+            result = {
+                "question"      : question,
+                "student_answer": student_answer,
+                "correct_answer": correct_answer,
+                "is_correct"    : True,
+                "feedback"      : "Correct! Well done.",
+                "explanation"   : answer.get("explanation", ""),
+                "level"         : level,
+            }
+        else:
+            try:
+                ai_result = await check_answer(
+                    unit_input, question, correct_answer,
+                    student_answer, subtopic, dimension, level,
+                    session.get("performance", {}),
+                )
+                result = {
+                    "question"      : question,
+                    "student_answer": student_answer,
+                    "correct_answer": correct_answer,
+                    "is_correct"    : False,
+                    "feedback"      : ai_result.get("feedback", ""),
+                    "hint"          : ai_result.get("hint", ""),
+                    "explanation"   : answer.get("explanation", ""),
+                    "level"         : level,
+                }
+            except Exception:
+                result = {
+                    "question"      : question,
+                    "student_answer": student_answer,
+                    "correct_answer": correct_answer,
+                    "is_correct"    : False,
+                    "feedback"      : "Incorrect.",
+                    "explanation"   : answer.get("explanation", ""),
+                    "level"         : level,
+                }
+
+        results.append(result)
+
+    score = sum(1 for r in results if r["is_correct"])
+    total = len(results)
+
+    if score >= max(1, round(total * 0.8)):
+        colour, message = "green", "Excellent work!"
+    elif score >= max(1, round(total * 0.5)):
+        colour, message = "amber", "Good effort. Some concepts need review."
+    else:
+        colour, message = "red", "This topic needs more attention."
+
+    return {"score": score, "total": total, "colour": colour,
+            "message": message, "results": results}
+
+
 @app.post("/check/open-ended")
 async def check_open_ended(data: dict):
     """AI feedback on any open-ended student response (provocation, analysis, discussion, reflection)."""

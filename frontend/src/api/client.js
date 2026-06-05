@@ -177,6 +177,15 @@ export const api = {
     return r.json()
   },
 
+  checkAnswersBatch: async (sessionId, answers) => {
+    const r = await fetch(`${BASE_URL}/check/answers-batch`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ session_id: sessionId, answers })
+    })
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(
