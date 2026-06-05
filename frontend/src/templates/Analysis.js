@@ -3,7 +3,6 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
-import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Analysis({ onNavigate }) {
   const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
@@ -13,8 +12,6 @@ export default function Analysis({ onNavigate }) {
   const [input, setInput] = useState("")
   const [done, setDone] = useState(false)
   const [submitError, setSubmitError] = useState(false)
-  const [aiFeedback, setAiFeedback] = useState(null)
-  const [checkingAI, setCheckingAI] = useState(false)
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
@@ -26,26 +23,12 @@ export default function Analysis({ onNavigate }) {
   const handleSubmit = () => {
     if (!input.trim()) { setSubmitError(true); return }
     setSubmitError(false)
-    setAiFeedback(null)   // clear AI feedback for the next question
     setInput("")
     if (currentQ + 1 >= (data?.guiding_questions?.length || 0)) {
       setDone(true)
     } else {
       setCurrentQ(q => q + 1)
     }
-  }
-
-  const checkThinking = async () => {
-    if (!input.trim()) return
-    setCheckingAI(true)
-    const result = await api.checkOpenEnded(
-      sessionId,
-      "Analysis",
-      data.guiding_questions?.[currentQ] || "",
-      input
-    )
-    setAiFeedback(result)
-    setCheckingAI(false)
   }
 
   const handleContinue = () => {
@@ -125,7 +108,6 @@ export default function Analysis({ onNavigate }) {
           onChange={e => {
             setInput(e.target.value)
             if (submitError) setSubmitError(false)
-            if (aiFeedback) setAiFeedback(null)
           }}
           placeholder="Write your observation here..."
           rows={4}
@@ -142,14 +124,6 @@ export default function Analysis({ onNavigate }) {
             Please write your observation before submitting.
           </p>
         )}
-
-        <OpenEndedFeedback
-          onCheck={checkThinking}
-          checking={checkingAI}
-          feedback={aiFeedback}
-          disabled={!input.trim()}
-          buttonLabel="Check my thinking"
-        />
 
         <button className="btn-orange" onClick={handleSubmit} style={{ marginTop: "10px" }}>
           Submit Observation →

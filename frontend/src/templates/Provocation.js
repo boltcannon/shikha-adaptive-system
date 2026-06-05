@@ -3,7 +3,6 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
-import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 // Bug 3 — five norms from spec (exact text)
 const NORMS = [
@@ -25,10 +24,6 @@ export default function Provocation({ onNavigate }) {
   // Bug 3 — boolean array, one entry per norm
   const [checkedNorms, setCheckedNorms] = useState(NORMS.map(() => false))
 
-  // AI feedback on the observation
-  const [obsFeedback, setObsFeedback] = useState(null)
-  const [checkingObs, setCheckingObs] = useState(false)
-
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
     api.generateProvocation(sessionId)
@@ -44,19 +39,6 @@ export default function Provocation({ onNavigate }) {
 
   const toggleNorm = (i) =>
     setCheckedNorms(prev => prev.map((v, idx) => idx === i ? !v : v))
-
-  const checkObservation = async () => {
-    if (!observationText.trim()) return
-    setCheckingObs(true)
-    const result = await api.checkOpenEnded(
-      sessionId,
-      "Provocation",
-      data.observation_prompt || "What do you notice about these situations?",
-      observationText
-    )
-    setObsFeedback(result)
-    setCheckingObs(false)
-  }
 
   // Bug 3 — gate requires ALL norms checked; observation is optional
   const allNormsChecked = checkedNorms.every(n => n)
@@ -112,7 +94,7 @@ export default function Provocation({ onNavigate }) {
         </label>
         <textarea
           value={observationText}
-          onChange={e => { setObservationText(e.target.value); setObsFeedback(null) }}
+          onChange={e => setObservationText(e.target.value)}
           placeholder="Share your thoughts, patterns you spotted, questions you have..."
           rows={4}
           style={{
@@ -120,13 +102,6 @@ export default function Provocation({ onNavigate }) {
             borderRadius: "8px", border: "1px solid #BDC3C7",
             fontFamily: "Arial", fontSize: "14px", resize: "vertical"
           }}
-        />
-        <OpenEndedFeedback
-          onCheck={checkObservation}
-          checking={checkingObs}
-          feedback={obsFeedback}
-          disabled={!observationText.trim()}
-          buttonLabel="Get AI Feedback"
         />
       </div>
 

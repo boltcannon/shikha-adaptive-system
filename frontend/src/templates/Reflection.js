@@ -3,38 +3,34 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
-import OpenEndedFeedback from "../components/OpenEndedFeedback"
 
 export default function Reflection({ onNavigate }) {
-  const { sessionId, performance, addCompletedTemplate, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [answers, setAnswers] = useState({})
-  // AI feedback per reflection question, keyed by question index
-  const [reflFeedback, setReflFeedback] = useState({})
-  const [checkingRefl, setCheckingRefl] = useState({})
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
-    const { exitTicketScore, masteryGateResult, projectIdea, completedTemplates } = performance
-    api.generateReflection(
-      sessionId,
-      exitTicketScore || "not recorded",
-      masteryGateResult || "not recorded",
-      projectIdea || "not specified",
-      completedTemplates.join(", ") || "several templates"
-    )
-      .then(res => { setData(res); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [sessionId]) // eslint-disable-line
+    // Use pre-generated content if available — zero API call
+    if (generatedContent?.reflection) {
+      setData(generatedContent.reflection)
+      setLoading(false)
+    } else {
+      // Fallback — only if not pre-generated
+      loadReflection()
+    }
+  }, [generatedContent]) // eslint-disable-line
 
-  const checkReflection = async (i, question) => {
-    const text = answers[i] || ""
-    if (!text.trim()) return
-    setCheckingRefl(prev => ({ ...prev, [i]: true }))
-    const result = await api.checkOpenEnded(sessionId, "Reflection", question, text)
-    setReflFeedback(prev => ({ ...prev, [i]: result }))
-    setCheckingRefl(prev => ({ ...prev, [i]: false }))
+  const loadReflection = async () => {
+    setLoading(true)
+    try {
+      const result = await api.generateReflection(sessionId, "", "", "", "")
+      setData(result)
+    } catch (e) {
+      console.warn("Reflection generation failed:", e)
+    }
+    setLoading(false)
   }
 
   const handleFinish = () => {
@@ -83,10 +79,7 @@ export default function Reflection({ onNavigate }) {
           </p>
           <textarea
             value={answers[i] || ""}
-            onChange={e => {
-              setAnswers(prev => ({ ...prev, [i]: e.target.value }))
-              setReflFeedback(prev => ({ ...prev, [i]: null }))
-            }}
+            onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
             placeholder="Write your reflection here..."
             rows={3}
             style={{
@@ -94,13 +87,6 @@ export default function Reflection({ onNavigate }) {
               border: "1px solid #BDC3C7", fontFamily: "Arial",
               fontSize: "13px", resize: "vertical"
             }}
-          />
-          <OpenEndedFeedback
-            onCheck={() => checkReflection(i, q)}
-            checking={!!checkingRefl[i]}
-            feedback={reflFeedback[i] || null}
-            disabled={!(answers[i] || "").trim()}
-            buttonLabel="Reflect deeper"
           />
         </div>
       ))}

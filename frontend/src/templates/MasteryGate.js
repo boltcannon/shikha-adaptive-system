@@ -13,7 +13,7 @@ const FALLBACK_SUBTOPICS = [
 ]
 
 export default function MasteryGate({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, updatePerformance, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, updatePerformance, saveStudentProgress } = useUnit()
 
   // Initialisation state
   const [subtopics,            setSubtopics]            = useState([])
@@ -31,13 +31,17 @@ export default function MasteryGate({ onNavigate }) {
   }, [sessionId]) // eslint-disable-line
 
   const initMastery = async () => {
-    // 1. Get chapter-specific sub-topics
+    // 1. Get chapter-specific sub-topics — use pre-generated content first
     let dynamicSubs = []
-    try {
-      const res = await api.generateSubtopics(sessionId)
-      if (res.subtopics?.length) dynamicSubs = res.subtopics
-    } catch (e) {
-      console.warn("generateSubtopics failed, using fallback:", e)
+    if (generatedContent?.subtopics?.subtopics?.length) {
+      dynamicSubs = generatedContent.subtopics.subtopics
+    } else {
+      try {
+        const res = await api.generateSubtopics(sessionId)
+        if (res.subtopics?.length) dynamicSubs = res.subtopics
+      } catch (e) {
+        console.warn("generateSubtopics failed, using fallback:", e)
+      }
     }
     if (!dynamicSubs.length) dynamicSubs = FALLBACK_SUBTOPICS
     setSubtopics(dynamicSubs)
