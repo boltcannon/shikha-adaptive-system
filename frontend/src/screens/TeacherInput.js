@@ -15,7 +15,7 @@ const CONTEXT_SUGGESTIONS = [
 ]
 
 export default function TeacherInput({ onNavigate }) {
-  const { sessionId, setSessionId, setUnitInput, setGeneratedContent } = useUnit()
+  const { sessionId, setSessionId, setUnitInput, setGeneratedContent, setPerformance, clearStudentSession } = useUnit()
   const [form, setForm] = useState({
     grade: "Class 6",
     subject: "",
@@ -273,6 +273,8 @@ export default function TeacherInput({ onNavigate }) {
               setSessionId(null)
               setUnitInput(null)
               setGeneratedContent(null)
+              setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
+              clearStudentSession()
             }}
             style={{
               width       : "100%",

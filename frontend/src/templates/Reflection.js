@@ -20,7 +20,7 @@ export default function Reflection({ onNavigate }) {
       // Fallback — only if not pre-generated
       loadReflection()
     }
-  }, [generatedContent]) // eslint-disable-line
+  }, [generatedContent, sessionId]) // eslint-disable-line
 
   const loadReflection = async () => {
     setLoading(true)

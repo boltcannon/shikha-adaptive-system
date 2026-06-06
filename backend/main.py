@@ -3,7 +3,6 @@ import datetime
 import hashlib
 import os
 import random
-import ssl
 import string
 import uuid
 
@@ -242,10 +241,6 @@ async def generate_all_templates(session_id: str):
         generate_ncl(unit_input, "subtopic 2", session["performance"]),
         generate_analysis(unit_input, session["performance"]),
         generate_discussion(unit_input, session["performance"]),
-        generate_mastery_question(
-            unit_input, "integers", "knowledge", "medium",
-            session["performance"]
-        ),
         generate_reflection(
             unit_input, "", "", "", "", session["performance"]
         ),
@@ -257,20 +252,19 @@ async def generate_all_templates(session_id: str):
         return r if not isinstance(r, Exception) else None
 
     content = {
-        "provocation":    _safe(results[0]),
-        "ncl_1":          _safe(results[1]),
-        "ncl_2":          _safe(results[2]),
-        "analysis":       _safe(results[3]),
-        "discussion":     _safe(results[4]),
-        "mastery_sample": _safe(results[5]),
-        "reflection":     _safe(results[6]),
-        "subtopics":      _safe(results[7]),
+        "provocation": _safe(results[0]),
+        "ncl_1":       _safe(results[1]),
+        "ncl_2":       _safe(results[2]),
+        "analysis":    _safe(results[3]),
+        "discussion":  _safe(results[4]),
+        "reflection":  _safe(results[5]),
+        "subtopics":   _safe(results[6]),
     }
 
-    # Log any generation errors without crashing
+    # Log any generation errors without crashing (no emoji — Windows cp1252 safe)
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            print(f"  ⚠  result[{i}] failed: {r}")
+            print(f"  [WARN] result[{i}] failed: {r}")
 
     # ── Persist to MongoDB (best-effort — don't crash if DB is down) ─
     try:
@@ -559,10 +553,10 @@ async def generate_all_mastery_questions(session_id: str):
         }
         idx += 4
 
-    # Log any failures
+    # Log any failures (no emoji — Windows cp1252 safe)
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            print(f"  ⚠  mastery result[{i}] failed: {r}")
+            print(f"  [WARN] mastery result[{i}] failed: {r}")
 
     # ── Cache (best-effort) ───────────────────────────────
     try:
@@ -591,7 +585,6 @@ async def get_mastery_question(
         if key in pre and dimension in pre[key]:
             available = [q for q in pre[key][dimension] if q is not None]
             if available:
-                import random
                 return random.choice(available)
 
     # Fall back to fresh generation

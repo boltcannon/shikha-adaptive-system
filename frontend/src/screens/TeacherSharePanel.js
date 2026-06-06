@@ -13,7 +13,7 @@ const EDITABLE_TEMPLATES = [
 ]
 
 export default function TeacherSharePanel({ onClose, onStartStudentView }) {
-  const { sessionId, unitInput, generatedContent } = useUnit()
+  const { sessionId, unitInput, generatedContent, setGeneratedContent } = useUnit()
 
   const [classCode,       setClassCode]       = useState(null)
   const [creating,        setCreating]        = useState(false)
@@ -65,10 +65,8 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
     try {
       const result = await api.regenerateTemplate(classCode, templateKey)
       if (result.new_content) {
-        // Update generatedContent in context so Edit panel shows the new version immediately
-        // (UnitContext does not expose setGeneratedContent directly from the panel,
-        //  so we store a local override — refresh triggers a re-read from class record)
-        console.log(`Regenerated ${templateKey}:`, result.new_content)
+        // Update context so Edit panel reflects the new content immediately
+        setGeneratedContent(prev => ({ ...(prev || {}), [templateKey]: result.new_content }))
       } else if (result.detail) {
         setRegenError(`${templateKey}: ${result.detail}`)
       }

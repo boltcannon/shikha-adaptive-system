@@ -91,7 +91,7 @@ export function UnitProvider({ children }) {
       unitInput, setUnitInput,
       generatedContent, setGeneratedContent,
       // Teacher performance
-      performance, updatePerformance, addCompletedTemplate,
+      performance, setPerformance, updatePerformance, addCompletedTemplate,
       // Student identity
       studentId,   setStudentId,
       studentName, setStudentName,

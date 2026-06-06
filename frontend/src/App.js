@@ -32,6 +32,7 @@ function AppContent() {
   const {
     sessionId, setSessionId,
     setUnitInput, setGeneratedContent,
+    setPerformance, clearStudentSession,
     studentName,
   } = useUnit()
 
@@ -52,11 +53,13 @@ function AppContent() {
     setScreen(s)
   }
 
-  // Clear session and return to Teacher Input
+  // Clear session and return to Teacher Input — reset ALL state
   const handleNewUnit = () => {
     setSessionId(null)
     setUnitInput(null)
     setGeneratedContent(null)
+    setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
+    clearStudentSession()
     setScreen("teacherInput")
     setMode("student")
   }

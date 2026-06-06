@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
@@ -14,6 +14,13 @@ export default function StudentJoin({ onNavigate, initialCode = "" }) {
   const [classInfo, setClassInfo] = useState(null)
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState("")
+
+  // Auto-lookup class info when arriving from a /join/:code URL
+  useEffect(() => {
+    if (initialCode && initialCode.trim()) {
+      handleCodeSubmit()
+    }
+  }, []) // eslint-disable-line
 
   const handleCodeSubmit = async () => {
     const trimmed = code.trim().toUpperCase()
