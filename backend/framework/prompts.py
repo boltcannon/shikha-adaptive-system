@@ -409,6 +409,36 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+ANALYSIS_CHECK_PROMPT = """
+{system_base}
+
+TEMPLATE: ANALYSIS
+A student has completed their analysis of the data artifact. Review their thinking.
+
+Student's analysis:
+Observations: {observations}
+Patterns they noticed: {patterns}
+What surprised them: {surprises}
+Their conclusion: {conclusion}
+
+Chapter: {chapter}
+Context: {context}
+
+Your job:
+1. Acknowledge what they got right specifically
+2. Point out any important pattern or insight they missed — without being negative
+3. Give them the ideal analysis in simple terms
+4. Connect their thinking to the chapter concepts
+
+Return ONLY valid JSON, no other text:
+{{
+  "student_analysis_feedback": "string — warm acknowledgement of what they found, 2-3 sentences",
+  "missed_insight": "string — one important thing they did not notice, framed positively",
+  "ideal_analysis": "string — what a strong analysis would look like, 3-4 sentences using the actual data",
+  "connection_to_chapter": "string — how their findings connect to chapter concepts, 1-2 sentences"
+}}
+"""
+
 REFLECTION_PROMPT = """
 {system_base}
 

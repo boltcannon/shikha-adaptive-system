@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Routes, Route, useParams, useMatch } from "react-router-dom"
 import { UnitProvider, useUnit } from "./context/UnitContext"
 import TeacherInput from "./screens/TeacherInput"
@@ -38,6 +38,11 @@ function AppContent() {
   const [screen,        setScreen]        = useState("teacherInput")
   const [mode,          setMode]          = useState("student")
   const [showSharePanel, setShowSharePanel] = useState(false)
+
+  // Scroll to top on every screen transition
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [screen])
 
   // Hide "Share with Class" on /join/:classCode URLs
   const isJoinRoute = useMatch("/join/:classCode")

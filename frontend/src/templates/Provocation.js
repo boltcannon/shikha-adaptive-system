@@ -4,7 +4,6 @@ import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
-// Bug 3 — five norms from spec (exact text)
 const NORMS = [
   "I will ask questions when I do not understand",
   "I will try before asking for help",
@@ -15,14 +14,24 @@ const NORMS = [
 
 export default function Provocation({ onNavigate }) {
   const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
-  const [data, setData] = useState(null)
+  const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [error,   setError]   = useState("")
+  const [step,    setStep]    = useState(1) // 1 | 2 | 3 | 4
 
-  // Bug 3 — single observation textarea (not per-scenario)
+  // Step 1 — shared observation about the 3 scenarios
   const [observationText, setObservationText] = useState("")
-  // Bug 3 — boolean array, one entry per norm
+
+  // Step 3 — one reflection textarea per scenario
+  const [scenarioReflections, setScenarioReflections] = useState(["", "", ""])
+
+  // Step 4 — community norms
   const [checkedNorms, setCheckedNorms] = useState(NORMS.map(() => false))
+
+  // Scroll to top whenever step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [step])
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
@@ -31,40 +40,33 @@ export default function Provocation({ onNavigate }) {
       .catch(() => { setError("Failed to generate Provocation"); setLoading(false) })
   }, [sessionId]) // eslint-disable-line
 
-  const handleContinue = () => {
+  const updateReflection = (i, value) =>
+    setScenarioReflections(prev => prev.map((v, idx) => idx === i ? value : v))
+
+  const toggleNorm = (i) =>
+    setCheckedNorms(prev => prev.map((v, idx) => idx === i ? !v : v))
+
+  const allNormsChecked = checkedNorms.every(n => n)
+
+  const handleBeginLearning = () => {
     addCompletedTemplate("provocation")
     saveStudentProgress({ current_screen: "ncl" })
     onNavigate("ncl")
   }
 
-  const toggleNorm = (i) =>
-    setCheckedNorms(prev => prev.map((v, idx) => idx === i ? !v : v))
-
-  // Bug 3 — gate requires ALL norms checked; observation is optional
-  const allNormsChecked = checkedNorms.every(n => n)
-
   if (loading) return <SimpleLoader />
-  if (error) return <p style={{ color: "#C0392B", fontFamily: "Arial" }}>{error}</p>
-  if (!data) return null
+  if (error)   return <p style={{ color: "#C0392B", fontFamily: "Arial" }}>{error}</p>
+  if (!data)   return null
 
-  return (
+  const scenarios = data.scenarios || []
+
+  // ── STEP 1 — Scenarios + observation ────────────────────────────
+  if (step === 1) return (
     <div>
-      <TemplateHeader template="PROVOCATION" subtitle="Co-Explorer" />
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 1 of 4`} />
 
-      {/* Role card */}
-      <div className="dark-card" style={{ marginBottom: "24px" }}>
-        <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "6px" }}>YOUR ROLE</p>
-        <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px", fontFamily: "Arial" }}>
-          {data.student_role}
-        </h2>
-        <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#D6EAF8", fontFamily: "Arial" }}>
-          {data.mission_statement}
-        </p>
-      </div>
-
-      {/* Scenarios */}
       <h2 className="heading-2" style={{ marginBottom: "16px" }}>Your Scenarios</h2>
-      {data.scenarios && data.scenarios.map((s, i) => (
+      {scenarios.map((s, i) => (
         <div key={i} className="card" style={{ borderLeft: "4px solid #E87722", marginBottom: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
             <span style={{ fontSize: "24px" }}>{s.icon}</span>
@@ -84,7 +86,6 @@ export default function Provocation({ onNavigate }) {
         </div>
       ))}
 
-      {/* Bug 3 — single shared observation textarea below all scenarios */}
       <div className="card" style={{ marginBottom: "16px" }}>
         <label style={{
           display: "block", fontFamily: "Arial", fontWeight: "bold",
@@ -105,10 +106,34 @@ export default function Provocation({ onNavigate }) {
         />
       </div>
 
-      {/* Big question */}
+      <button
+        className="btn-primary"
+        onClick={() => setStep(2)}
+        style={{ width: "100%", padding: "14px" }}
+      >
+        Next →
+      </button>
+    </div>
+  )
+
+  // ── STEP 2 — Mission + Big Question ─────────────────────────────
+  if (step === 2) return (
+    <div>
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 2 of 4`} />
+
+      <div className="dark-card" style={{ marginBottom: "24px" }}>
+        <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "6px" }}>YOUR ROLE</p>
+        <h2 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px", fontFamily: "Arial" }}>
+          {data.student_role}
+        </h2>
+        <p style={{ fontSize: "14px", lineHeight: "1.6", color: "#D6EAF8", fontFamily: "Arial" }}>
+          {data.mission_statement}
+        </p>
+      </div>
+
       <div style={{
         background: "#1A5276", borderRadius: "12px", padding: "24px",
-        margin: "24px 0", textAlign: "center"
+        marginBottom: "24px", textAlign: "center"
       }}>
         <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "8px", fontFamily: "Arial" }}>
           THE BIG QUESTION
@@ -118,7 +143,6 @@ export default function Provocation({ onNavigate }) {
         </p>
       </div>
 
-      {/* Observation prompt */}
       {data.observation_prompt && (
         <div className="card" style={{ background: "#FEF9E7", border: "1px solid #F9E79F", marginBottom: "16px" }}>
           <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#7D6608", lineHeight: "1.6" }}>
@@ -127,7 +151,68 @@ export default function Provocation({ onNavigate }) {
         </div>
       )}
 
-      {/* Bug 3 — community norms with spec's exact text */}
+      <button
+        className="btn-primary"
+        onClick={() => setStep(3)}
+        style={{ width: "100%", padding: "14px" }}
+      >
+        Next →
+      </button>
+    </div>
+  )
+
+  // ── STEP 3 — Per-scenario reflection textareas ───────────────────
+  if (step === 3) return (
+    <div>
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 3 of 4`} />
+
+      <div className="card" style={{ background: "#EBF5FB", marginBottom: "20px" }}>
+        <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#1A5276", lineHeight: "1.6" }}>
+          Now think more carefully about each scenario.
+          Write your thoughts for each one below.
+        </p>
+      </div>
+
+      {scenarios.map((s, i) => (
+        <div key={i} className="card" style={{ marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "20px" }}>{s.icon}</span>
+            <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "14px", color: "#1A5276" }}>
+              {s.title}
+            </p>
+          </div>
+          <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E", marginBottom: "8px", lineHeight: "1.5" }}>
+            {s.question}
+          </p>
+          <textarea
+            value={scenarioReflections[i]}
+            onChange={e => updateReflection(i, e.target.value)}
+            placeholder="Write your thoughts..."
+            rows={3}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px",
+              borderRadius: "8px", border: "1px solid #BDC3C7",
+              fontFamily: "Arial", fontSize: "14px", resize: "vertical"
+            }}
+          />
+        </div>
+      ))}
+
+      <button
+        className="btn-primary"
+        onClick={() => setStep(4)}
+        style={{ width: "100%", padding: "14px" }}
+      >
+        Next →
+      </button>
+    </div>
+  )
+
+  // ── STEP 4 — Community Norms + Begin Learning ────────────────────
+  return (
+    <div>
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 4 of 4`} />
+
       <div className="card" style={{ marginBottom: "16px" }}>
         <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#1A5276", marginBottom: "12px" }}>
           Community Norms — I agree to:
@@ -156,10 +241,9 @@ export default function Provocation({ onNavigate }) {
         </p>
       )}
 
-      {/* Bug 3 — gated: disabled + grey until all norms checked */}
       <button
         className="btn-primary"
-        onClick={handleContinue}
+        onClick={handleBeginLearning}
         disabled={!allNormsChecked}
         style={{
           width: "100%", padding: "14px",

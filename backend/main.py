@@ -417,6 +417,39 @@ async def check_answers_batch(data: dict):
             "message": message, "results": results}
 
 
+@app.post("/check/analysis")
+async def check_analysis_responses(data: dict):
+    """
+    Reviews a student's graphic-organiser analysis in one call.
+    Returns warm feedback on what they found + an ideal analysis.
+    """
+    from framework.prompts import ANALYSIS_CHECK_PROMPT
+    from framework.mat_engine import build_system_base, call_claude
+
+    session_id = data.get("session_id")
+    responses  = data.get("responses", {})
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    unit_input  = session["unit_input"]
+    system_base = build_system_base(unit_input, session.get("performance", {}))
+
+    prompt = ANALYSIS_CHECK_PROMPT.format(
+        system_base  = system_base,
+        observations = responses.get("observations", ""),
+        patterns     = responses.get("patterns", ""),
+        surprises    = responses.get("surprises", ""),
+        conclusion   = responses.get("conclusion", ""),
+        chapter      = unit_input.chapter,
+        context      = unit_input.context,
+    )
+
+    result = await asyncio.to_thread(call_claude, prompt, 800)
+    return result
+
+
 @app.post("/check/open-ended")
 async def check_open_ended(data: dict):
     """AI feedback on any open-ended student response (provocation, analysis, discussion, reflection)."""

@@ -177,6 +177,15 @@ export const api = {
     return r.json()
   },
 
+  checkAnalysis: async (sessionId, responses) => {
+    const r = await fetch(`${BASE_URL}/check/analysis`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ session_id: sessionId, responses })
+    })
+    return r.json()
+  },
+
   checkAnswersBatch: async (sessionId, answers) => {
     const r = await fetch(`${BASE_URL}/check/answers-batch`, {
       method : "POST",
