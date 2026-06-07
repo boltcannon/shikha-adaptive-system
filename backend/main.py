@@ -219,33 +219,39 @@ def health():
 # ──────────────────────────────────────────────────────────
 @app.post("/auth/register")
 async def register(request: RegisterRequest):
-    existing = users_collection.find_one({"email": request.email.lower()})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        existing = users_collection.find_one({"email": request.email.lower()})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_id = str(uuid.uuid4())
-    user = {
-        "user_id"   : user_id,
-        "name"      : request.name.strip(),
-        "email"     : request.email.lower().strip(),
-        "password"  : hash_password(request.password),
-        "role"      : request.role,
-        "created_at": datetime.datetime.utcnow(),
-    }
-    users_collection.insert_one(user)
+        user_id = str(uuid.uuid4())
+        user = {
+            "user_id"   : user_id,
+            "name"      : request.name.strip(),
+            "email"     : request.email.lower().strip(),
+            "password"  : hash_password(request.password),
+            "role"      : request.role,
+            "created_at": datetime.datetime.utcnow(),
+        }
+        users_collection.insert_one(user)
 
-    token = create_token({
-        "user_id": user_id,
-        "email"  : request.email.lower(),
-        "role"   : request.role,
-    })
-    return {
-        "token"  : token,
-        "user_id": user_id,
-        "name"   : request.name.strip(),
-        "email"  : request.email.lower(),
-        "role"   : request.role,
-    }
+        token = create_token({
+            "user_id": user_id,
+            "email"  : request.email.lower(),
+            "role"   : request.role,
+        })
+        return {
+            "token"  : token,
+            "user_id": user_id,
+            "name"   : request.name.strip(),
+            "email"  : request.email.lower(),
+            "role"   : request.role,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Register error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/auth/login")
