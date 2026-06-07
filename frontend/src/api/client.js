@@ -186,6 +186,13 @@ export const api = {
     return r.json()
   },
 
+  getExitTicket: async (sessionId) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/exit-ticket/${sessionId}`
+    )
+    return r.json()
+  },
+
   checkAnswersBatch: async (sessionId, answers) => {
     const r = await fetch(`${BASE_URL}/check/answers-batch`, {
       method : "POST",

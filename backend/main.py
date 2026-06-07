@@ -235,36 +235,57 @@ async def generate_all_templates(session_id: str):
     # ── Cache MISS — generate in parallel ─────────────────
     print(f"Cache MISS : {cache_key} - generating...")
 
-    results = await asyncio.gather(
+    def _safe(r):
+        return r if not isinstance(r, Exception) else None
+
+    # Step 1: base content + subtopics in parallel
+    base_results = await asyncio.gather(
         generate_provocation(unit_input, session["performance"]),
-        generate_ncl(unit_input, "subtopic 1", session["performance"]),
-        generate_ncl(unit_input, "subtopic 2", session["performance"]),
         generate_analysis(unit_input, session["performance"]),
         generate_discussion(unit_input, session["performance"]),
-        generate_reflection(
-            unit_input, "", "", "", "", session["performance"]
-        ),
+        generate_reflection(unit_input, "", "", "", "", session["performance"]),
         generate_subtopics(unit_input, session["performance"]),
         return_exceptions=True,
     )
 
-    def _safe(r):
-        return r if not isinstance(r, Exception) else None
+    for i, r in enumerate(base_results):
+        if isinstance(r, Exception):
+            print(f"  [WARN] base_result[{i}] failed: {r}")
+
+    provocation = _safe(base_results[0])
+    analysis    = _safe(base_results[1])
+    discussion  = _safe(base_results[2])
+    reflection  = _safe(base_results[3])
+    subtopics   = _safe(base_results[4])
+
+    # Step 2: NCL for every subtopic in parallel
+    ncl_content = {}
+    if subtopics and subtopics.get("subtopics"):
+        ncl_tasks = await asyncio.gather(
+            *[
+                generate_ncl(
+                    unit_input,
+                    st["label"],
+                    session["performance"],
+                )
+                for st in subtopics["subtopics"]
+            ],
+            return_exceptions=True,
+        )
+        for i, st in enumerate(subtopics["subtopics"]):
+            result = ncl_tasks[i]
+            if isinstance(result, Exception):
+                print(f"  [WARN] ncl[{st['key']}] failed: {result}")
+            ncl_content[st["key"]] = _safe(result)
 
     content = {
-        "provocation": _safe(results[0]),
-        "ncl_1":       _safe(results[1]),
-        "ncl_2":       _safe(results[2]),
-        "analysis":    _safe(results[3]),
-        "discussion":  _safe(results[4]),
-        "reflection":  _safe(results[5]),
-        "subtopics":   _safe(results[6]),
+        "provocation": provocation,
+        "analysis":    analysis,
+        "discussion":  discussion,
+        "reflection":  reflection,
+        "subtopics":   subtopics,
+        "ncl":         ncl_content,
     }
-
-    # Log any generation errors without crashing (no emoji — Windows cp1252 safe)
-    for i, r in enumerate(results):
-        if isinstance(r, Exception):
-            print(f"  [WARN] result[{i}] failed: {r}")
 
     # ── Persist to MongoDB (best-effort — don't crash if DB is down) ─
     try:
@@ -483,6 +504,35 @@ async def get_subtopics(session_id: str):
     session.setdefault("generated_content", {})["subtopics"] = result
     save_session_to_db(session_id, session)
     return result
+
+
+@app.get("/generate/exit-ticket/{session_id}")
+async def get_exit_ticket(session_id: str):
+    """Collect 1-2 questions per subtopic from pre-generated NCL content."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    ncl_content = session.get("generated_content", {}).get("ncl", {})
+    if not ncl_content:
+        raise HTTPException(status_code=404, detail="NCL content not generated yet")
+
+    all_questions = []
+    for subtopic_key, ncl_data in ncl_content.items():
+        if ncl_data and ncl_data.get("questions"):
+            for q in ncl_data["questions"][:2]:
+                q["subtopic_key"]   = subtopic_key
+                q["subtopic_label"] = ncl_data.get("subtopic_name", subtopic_key)
+                all_questions.append(q)
+
+    if len(all_questions) > 10:
+        all_questions = random.sample(all_questions, 10)
+
+    return {
+        "questions": all_questions,
+        "total":     len(all_questions),
+        "source":    "ncl_content",
+    }
 
 
 @app.post("/generate/mastery-all/{session_id}")

@@ -68,6 +68,26 @@ export function UnitProvider({ children }) {
     }
   }
 
+  // ── NCL multi-subtopic progress ──────────────────────────
+  const [nclProgress, setNclProgress] = useState(() => {
+    try {
+      const saved = localStorage.getItem("nclProgress")
+      return saved ? JSON.parse(saved) : {
+        completedSubtopics  : [],
+        currentSubtopicIndex: 0,
+        phase               : "learning",
+      }
+    } catch {
+      return { completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" }
+    }
+  })
+
+  const updateNclProgress = (updates) => {
+    const newProgress = { ...nclProgress, ...updates }
+    setNclProgress(newProgress)
+    localStorage.setItem("nclProgress", JSON.stringify(newProgress))
+  }
+
   /** Clear all student state (called when teacher starts a new unit) */
   const clearStudentSession = () => {
     setStudentId(null)
@@ -78,10 +98,12 @@ export function UnitProvider({ children }) {
       exit_ticket_score: null, mastery_gate_result: null,
       project_idea: "", reflection_done: false
     })
+    setNclProgress({ completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" })
     localStorage.removeItem("studentId")
     localStorage.removeItem("studentName")
     localStorage.removeItem("classCode")
     localStorage.removeItem("studentProgress")
+    localStorage.removeItem("nclProgress")
   }
 
   return (
@@ -100,6 +122,8 @@ export function UnitProvider({ children }) {
       studentProgress, setStudentProgress,
       saveStudentProgress,
       clearStudentSession,
+      // NCL progress
+      nclProgress, updateNclProgress,
     }}>
       {children}
     </UnitContext.Provider>
