@@ -33,14 +33,26 @@ load_dotenv()
 
 # ── MongoDB ───────────────────────────────────────────────
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-mongo_client = MongoClient(
-    MONGODB_URI,
-    serverSelectionTimeoutMS=5000,   # fail fast — don't hang requests for 30 s
-    connectTimeoutMS=5000,
-    socketTimeoutMS=5000,
-    tls=True,
-    tlsAllowInvalidCertificates=True,
-)
+
+# Use TLS only for Atlas (cloud) connections; local MongoDB does not need it
+use_tls = "mongodb+srv" in MONGODB_URI or "mongodb.net" in MONGODB_URI
+
+if use_tls:
+    mongo_client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=5000,
+        tls=True,
+        tlsAllowInvalidCertificates=True,
+    )
+else:
+    mongo_client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=5000,
+    )
 db = mongo_client["shikha_framework"]
 cache_collection    = db["unit_cache"]
 sessions_collection = db["sessions"]
