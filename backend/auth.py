@@ -1,28 +1,35 @@
 from datetime import datetime, timedelta
 from typing import Optional
-
 from jose import JWTError, jwt
-import bcrypt as _bcrypt
+import bcrypt
 import os
 
 SECRET_KEY = os.getenv(
-    "SECRET_KEY", "shikha-secret-key-change-in-production"
+    "SECRET_KEY",
+    "shikha-secret-key-change-in-production"
 )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
 
-def _pw_bytes(password: str) -> bytes:
-    """Encode and truncate to 72 bytes — bcrypt's hard limit."""
+def _safe_bytes(password: str) -> bytes:
     return password.encode("utf-8")[:72]
 
 
 def hash_password(password: str) -> str:
-    return _bcrypt.hashpw(_pw_bytes(password), _bcrypt.gensalt(rounds=12)).decode("utf-8")
+    salt   = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(_safe_bytes(password), salt)
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _bcrypt.checkpw(_pw_bytes(plain), hashed.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(
+            _safe_bytes(plain),
+            hashed.encode("utf-8")
+        )
+    except Exception:
+        return False
 
 
 def create_token(data: dict) -> str:
