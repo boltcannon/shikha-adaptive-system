@@ -7,11 +7,13 @@ import string
 import uuid
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo import MongoClient
 
+from auth import create_token, decode_token, hash_password, verify_password
 from framework.mat_engine import (
     check_answer,
     check_open_ended_response,
@@ -24,7 +26,7 @@ from framework.mat_engine import (
     generate_subtopics,
     guide_project,
 )
-from models import AnswerInput, ProjectMessage, UnitInput
+from models import AnswerInput, LoginRequest, ProjectMessage, RegisterRequest, UnitInput
 
 # ── Environment ───────────────────────────────────────────
 load_dotenv()
@@ -45,6 +47,7 @@ sessions_collection = db["sessions"]
 classes_collection  = db["classes"]
 students_collection = db["students"]
 progress_collection = db["progress"]
+users_collection    = db["users"]
 
 # ── FastAPI app ───────────────────────────────────────────
 app = FastAPI(
@@ -169,6 +172,24 @@ def _get_session(session_id: str) -> dict:
     return session
 
 
+# ── Auth helpers ───────────────────────────────────────────
+security = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    if not credentials:
+        return None
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        return None
+    return users_collection.find_one(
+        {"user_id": payload.get("user_id")},
+        {"_id": 0, "password": 0},
+    )
+
+
 # ──────────────────────────────────────────────────────────
 # Health check
 # ──────────────────────────────────────────────────────────
@@ -182,10 +203,74 @@ def health():
 
 
 # ──────────────────────────────────────────────────────────
+# Auth endpoints
+# ──────────────────────────────────────────────────────────
+@app.post("/auth/register")
+async def register(request: RegisterRequest):
+    existing = users_collection.find_one({"email": request.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_id = str(uuid.uuid4())
+    user = {
+        "user_id"   : user_id,
+        "name"      : request.name.strip(),
+        "email"     : request.email.lower().strip(),
+        "password"  : hash_password(request.password),
+        "role"      : request.role,
+        "created_at": datetime.datetime.utcnow(),
+    }
+    users_collection.insert_one(user)
+
+    token = create_token({
+        "user_id": user_id,
+        "email"  : request.email.lower(),
+        "role"   : request.role,
+    })
+    return {
+        "token"  : token,
+        "user_id": user_id,
+        "name"   : request.name.strip(),
+        "email"  : request.email.lower(),
+        "role"   : request.role,
+    }
+
+
+@app.post("/auth/login")
+async def login(request: LoginRequest):
+    user = users_collection.find_one({"email": request.email.lower()})
+    if not user or not verify_password(request.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_token({
+        "user_id": user["user_id"],
+        "email"  : user["email"],
+        "role"   : user["role"],
+    })
+    return {
+        "token"  : token,
+        "user_id": user["user_id"],
+        "name"   : user["name"],
+        "email"  : user["email"],
+        "role"   : user["role"],
+    }
+
+
+@app.get("/auth/me")
+async def get_me(current_user=Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return current_user
+
+
+# ──────────────────────────────────────────────────────────
 # Unit creation
 # ──────────────────────────────────────────────────────────
 @app.post("/unit/create")
-async def create_unit(unit_input: UnitInput):
+async def create_unit(
+    unit_input: UnitInput,
+    current_user=Depends(get_current_user),
+):
     session_id   = str(uuid.uuid4())
     session_data = {
         "unit_input"         : unit_input,
@@ -193,6 +278,7 @@ async def create_unit(unit_input: UnitInput):
         "current_template"   : "provocation",
         "completed_templates": [],
         "generated_content"  : {},
+        "teacher_id"         : current_user["user_id"] if current_user else None,
     }
     sessions[session_id] = session_data
     save_session_to_db(session_id, session_data)
@@ -760,6 +846,7 @@ async def create_class(data: dict):
         "created_at"       : datetime.datetime.utcnow(),
         "students"         : [],
         "status"           : "active",
+        "teacher_id"       : session.get("teacher_id"),
     }
     classes_collection.insert_one(class_record)
     print(f"[class/create] created class: {class_code}")
@@ -856,11 +943,26 @@ async def save_progress(data: dict):
     """Save student progress after each completed template."""
     student_id = data.get("student_id")
     progress   = data.get("progress", {})
+
+    if not student_id:
+        return {"saved": False, "error": "No student_id"}
+
     students_collection.update_one(
         {"student_id": student_id},
         {"$set": {"progress": progress, "updated_at": datetime.datetime.utcnow()}},
+        upsert=True,
     )
     return {"saved": True}
+
+
+@app.get("/student/{student_id}/progress")
+async def get_student_progress(student_id: str):
+    student = students_collection.find_one(
+        {"student_id": student_id}, {"_id": 0}
+    )
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
 
 
 @app.get("/class/{class_code}/results")

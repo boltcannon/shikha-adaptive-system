@@ -5,7 +5,8 @@ import { api } from "../api/client"
 export default function StudentJoin({ onNavigate, initialCode = "" }) {
   const {
     setSessionId, setStudentId, setStudentName,
-    setClassCode, setStudentProgress
+    setClassCode, setStudentProgress,
+    currentUser, login,
   } = useUnit()
 
   const [step, setStep]           = useState(initialCode ? "name" : "code")
@@ -52,6 +53,27 @@ export default function StudentJoin({ onNavigate, initialCode = "" }) {
       setStudentName(result.student_name)
       setClassCode(code)
       setSessionId(result.session_id)
+
+      // Auto-register student account if not already logged in
+      if (!currentUser) {
+        try {
+          const authResult = await api.register(
+            result.student_name,
+            `${result.student_id}@shikha.student`,
+            result.student_id,
+            "student"
+          )
+          if (authResult.token) {
+            login(
+              { user_id: authResult.user_id, name: authResult.name,
+                email: authResult.email, role: "student" },
+              authResult.token
+            )
+          }
+        } catch (e) {
+          // Account may already exist — that is ok
+        }
+      }
 
       if (result.progress) {
         setStudentProgress(result.progress)

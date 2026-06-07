@@ -202,6 +202,37 @@ export const api = {
     return r.json()
   },
 
+  // ── Auth ──────────────────────────────────────────────────
+  register: async (name, email, password, role) => {
+    const r = await fetch(`${BASE_URL}/auth/register`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ name, email, password, role })
+    })
+    return r.json()
+  },
+
+  login: async (email, password) => {
+    const r = await fetch(`${BASE_URL}/auth/login`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ email, password })
+    })
+    return r.json()
+  },
+
+  getMe: async (token) => {
+    const r = await fetch(`${BASE_URL}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    return r.json()
+  },
+
+  getStudentProgress: async (studentId) => {
+    const r = await fetch(`${BASE_URL}/student/${studentId}/progress`)
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(

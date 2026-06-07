@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react"
 import { Routes, Route, useParams, useMatch } from "react-router-dom"
 import { UnitProvider, useUnit } from "./context/UnitContext"
+import AuthScreen from "./screens/AuthScreen"
+import SimpleLoader from "./components/SimpleLoader"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
 import StudentJoin from "./screens/StudentJoin"
@@ -34,16 +36,24 @@ function AppContent() {
     setUnitInput, setGeneratedContent,
     setPerformance, clearStudentSession,
     studentName,
+    currentUser, authLoading, logout,
   } = useUnit()
 
-  const [screen,        setScreen]        = useState("teacherInput")
-  const [mode,          setMode]          = useState("student")
+  const [screen,         setScreen]         = useState("auth")
+  const [mode,           setMode]           = useState("student")
   const [showSharePanel, setShowSharePanel] = useState(false)
 
   // Scroll to top on every screen transition
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [screen])
+
+  // Auto-redirect after token verification completes
+  useEffect(() => {
+    if (!authLoading && currentUser && screen === "auth") {
+      setScreen(currentUser.role === "teacher" ? "teacherInput" : "studentJoin")
+    }
+  }, [authLoading, currentUser]) // eslint-disable-line
 
   // Hide "Share with Class" on /join/:classCode URLs
   const isJoinRoute = useMatch("/join/:classCode")
@@ -65,10 +75,18 @@ function AppContent() {
   }
 
   const renderScreen = () => {
+    if (authLoading) return <SimpleLoader />
+
+    if (!currentUser && screen !== "auth" && screen !== "studentJoin") {
+      return <AuthScreen onNavigate={navigateTo} />
+    }
+
     if (mode === "teacher") {
       return <TeacherDashboard onBack={() => setMode("student")} />
     }
+
     switch (screen) {
+      case "auth":            return <AuthScreen onNavigate={navigateTo} />
       case "teacherInput":    return <TeacherInput onNavigate={navigateTo} />
       case "unitLoader":      return <UnitLoader onNavigate={navigateTo} />
       case "provocation":     return <Provocation onNavigate={navigateTo} />
@@ -105,14 +123,38 @@ function AppContent() {
         {/* Right-side controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 
-          {/* Fix 4 — student name while in student mode */}
-          {mode === "student" && studentName && (
+          {/* Student name in guest mode (not logged in) */}
+          {mode === "student" && studentName && !currentUser && (
             <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
-              👤 {studentName}
+              {studentName}
             </span>
           )}
 
-          {/* Fix 1 — New Unit (teacher mode + session exists) */}
+          {/* Auth user name + sign out */}
+          {currentUser && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
+                {currentUser.name}
+              </span>
+              <button
+                onClick={() => { logout(); navigateTo("auth") }}
+                style={{
+                  background  : "rgba(255,255,255,0.15)",
+                  color       : "white",
+                  border      : "1px solid rgba(255,255,255,0.3)",
+                  borderRadius: "6px",
+                  padding     : "4px 10px",
+                  cursor      : "pointer",
+                  fontFamily  : "Arial",
+                  fontSize    : "12px",
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
+
+          {/* New Unit (teacher mode + session exists) */}
           {sessionId && mode === "teacher" && (
             <button
               onClick={handleNewUnit}

@@ -32,3 +32,23 @@ class ProjectMessage(BaseModel):
     project_idea: str
     message: str
     progress: str = ""
+
+
+class RegisterRequest(BaseModel):
+    name    : str
+    email   : str
+    password: str
+    role    : str  # "teacher" or "student"
+
+
+class LoginRequest(BaseModel):
+    email   : str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    token     : str
+    user_id   : str
+    name      : str
+    email     : str
+    role      : str
