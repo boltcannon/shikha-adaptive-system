@@ -63,6 +63,7 @@ function DevPanelInner({ onNavigate, onModeChange }) {
   const {
     setSessionId, setUnitInput, setGeneratedContent,
     setStudentId, setStudentName,
+    clearStudentSession,
   } = useUnit()
 
   // ── Create session + generate all content ─────────────
@@ -70,6 +71,10 @@ function DevPanelInner({ onNavigate, onModeChange }) {
     setLoading(true)
     setStatus("Creating session...")
     try {
+      // Clear any stale student progress (project_idea, nclProgress, etc.)
+      // so templates always start fresh when testing via DevPanel
+      clearStudentSession()
+
       const r1 = await api.createUnit(customUnit)
       setSessionId(r1.session_id)
       setUnitInput(customUnit)

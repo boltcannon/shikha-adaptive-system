@@ -51,8 +51,25 @@ export default function NCL({ onNavigate }) {
 
       let ncl = {}
       if (generatedContent?.ncl) {
-        ncl = generatedContent.ncl
+        ncl = { ...generatedContent.ncl }
       }
+
+      // Any subtopic whose NCL is null/missing gets generated on-demand
+      // (handles transient failures during bulk generation or stale cache)
+      const missing = subs.filter(st => !ncl[st.key])
+      if (missing.length > 0) {
+        try {
+          const retries = await Promise.all(
+            missing.map(st => api.generateNCL(sessionId, st.label))
+          )
+          retries.forEach((r, i) => {
+            if (r && r.subtopic_name) ncl[missing[i].key] = r
+          })
+        } catch (e) {
+          console.log("NCL on-demand generation failed:", e)
+        }
+      }
+
       setNclData(ncl)
 
       if (nclProgress?.completedSubtopics?.length > 0) {

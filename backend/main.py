@@ -338,6 +338,9 @@ async def generate_all_templates(session_id: str):
     unit_input = session["unit_input"]
     cache_key  = make_cache_key(unit_input)
 
+    def _safe(r):
+        return r if not isinstance(r, Exception) else None
+
     # ── Cache HIT ─────────────────────────────────────────
     cached = None
     try:
@@ -346,27 +349,67 @@ async def generate_all_templates(session_id: str):
         print(f"Cache read failed (MongoDB unreachable?): {e}")
 
     if cached:
-        print(f"Cache HIT  : {cache_key}")
-        try:
-            cache_collection.update_one(
-                {"cache_key": cache_key},
-                {"$inc": {"hit_count": 1}}
+        content      = cached["content"]
+        has_ncl      = bool(content.get("ncl"))
+        has_subtopics = bool(content.get("subtopics", {}).get("subtopics"))
+
+        # ── Outdated cache format (pre-dates subtopics/ncl structure) ──
+        # Delete and fall through to full regeneration
+        if not has_ncl and not has_subtopics:
+            print(f"Cache HIT but outdated format — invalidating {cache_key}")
+            try:
+                cache_collection.delete_one({"cache_key": cache_key})
+            except Exception:
+                pass
+            cached = None
+
+        # ── Partial cache: has subtopics but NCL was not yet generated ──
+        # Backfill NCL in-place and update the cache entry
+        elif not has_ncl and has_subtopics:
+            print(f"Cache HIT but NCL missing — backfilling for {cache_key}")
+            subs      = content["subtopics"]["subtopics"]
+            ncl_tasks = await asyncio.gather(
+                *[
+                    generate_ncl(unit_input, st["label"], session["performance"])
+                    for st in subs
+                ],
+                return_exceptions=True,
             )
-        except Exception:
-            pass
-        session["generated_content"] = cached["content"]
-        save_session_to_db(session_id, session)
-        return {
-            "source": "cache",
-            "message": "Loaded from cache instantly",
-            "content": cached["content"],
-        }
+            ncl_content = {}
+            for i, st in enumerate(subs):
+                if isinstance(ncl_tasks[i], Exception):
+                    print(f"  [WARN] ncl backfill [{st['key']}] failed: {ncl_tasks[i]}")
+                ncl_content[st["key"]] = _safe(ncl_tasks[i])
+            content["ncl"] = ncl_content
+            try:
+                cache_collection.update_one(
+                    {"cache_key": cache_key},
+                    {"$set": {"content.ncl": ncl_content}}
+                )
+                print(f"NCL backfilled in cache: {cache_key}")
+            except Exception as e:
+                print(f"Cache NCL update failed: {e}")
+
+        # ── Good cache hit ─────────────────────────────────────────────
+        if cached is not None:
+            print(f"Cache HIT  : {cache_key}")
+            try:
+                cache_collection.update_one(
+                    {"cache_key": cache_key},
+                    {"$inc": {"hit_count": 1}}
+                )
+            except Exception:
+                pass
+            session["generated_content"] = content
+            save_session_to_db(session_id, session)
+            return {
+                "source": "cache",
+                "message": "Loaded from cache instantly",
+                "content": content,
+            }
 
     # ── Cache MISS — generate in parallel ─────────────────
     print(f"Cache MISS : {cache_key} - generating...")
-
-    def _safe(r):
-        return r if not isinstance(r, Exception) else None
 
     # Step 1: base content + subtopics in parallel
     base_results = await asyncio.gather(
