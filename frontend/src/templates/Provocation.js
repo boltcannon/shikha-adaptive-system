@@ -100,16 +100,40 @@ export default function Provocation({ onNavigate }) {
           rows={4}
           style={{
             width: "100%", boxSizing: "border-box", padding: "10px",
-            borderRadius: "8px", border: "1px solid #BDC3C7",
+            borderRadius: "8px",
+            border: `1px solid ${observationText.trim().length >= 20 ? "#1E8449" : "#BDC3C7"}`,
             fontFamily: "Arial", fontSize: "14px", resize: "vertical"
           }}
         />
+        <p style={{
+          fontSize: "11px",
+          color: observationText.trim().length >= 20 ? "#1E8449" : "#BDC3C7",
+          fontFamily: "Arial", marginTop: "4px",
+        }}>
+          {observationText.trim().length}/20 characters minimum
+        </p>
       </div>
+
+      {!( observationText.trim().length >= 20) && (
+        <p style={{
+          fontSize: "12px", color: "#E87722",
+          fontFamily: "Arial", marginBottom: "8px",
+        }}>
+          Please write at least one observation before continuing.
+        </p>
+      )}
 
       <button
         className="btn-primary"
         onClick={() => setStep(2)}
-        style={{ width: "100%", padding: "14px" }}
+        disabled={observationText.trim().length < 20}
+        style={{
+          width: "100%", padding: "14px",
+          background: observationText.trim().length >= 20 ? "#E87722" : "#BDC3C7",
+          cursor: observationText.trim().length >= 20 ? "pointer" : "not-allowed",
+          border: "none", borderRadius: "8px", color: "white",
+          fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
+        }}
       >
         Next →
       </button>
@@ -173,38 +197,75 @@ export default function Provocation({ onNavigate }) {
         </p>
       </div>
 
-      {scenarios.map((s, i) => (
-        <div key={i} className="card" style={{ marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-            <span style={{ fontSize: "20px" }}>{s.icon}</span>
-            <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "14px", color: "#1A5276" }}>
-              {s.title}
+      {scenarios.map((s, i) => {
+        const answered = scenarioReflections[i].trim().length >= 15
+        return (
+          <div key={i} className="card" style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <span style={{ fontSize: "20px" }}>{s.icon}</span>
+              <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "14px", color: "#1A5276" }}>
+                {s.title}
+              </p>
+              {answered && (
+                <span style={{
+                  marginLeft: "auto", background: "#D5F5E3", color: "#1E8449",
+                  fontSize: "11px", fontWeight: "bold", fontFamily: "Arial",
+                  padding: "2px 8px", borderRadius: "10px",
+                }}>
+                  ✓
+                </span>
+              )}
+            </div>
+            <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E", marginBottom: "8px", lineHeight: "1.5" }}>
+              {s.question}
             </p>
+            <textarea
+              value={scenarioReflections[i]}
+              onChange={e => updateReflection(i, e.target.value)}
+              placeholder="Write your thoughts..."
+              rows={3}
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px",
+                borderRadius: "8px",
+                border: `1px solid ${answered ? "#1E8449" : "#BDC3C7"}`,
+                fontFamily: "Arial", fontSize: "14px", resize: "vertical",
+              }}
+            />
           </div>
-          <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E", marginBottom: "8px", lineHeight: "1.5" }}>
-            {s.question}
-          </p>
-          <textarea
-            value={scenarioReflections[i]}
-            onChange={e => updateReflection(i, e.target.value)}
-            placeholder="Write your thoughts..."
-            rows={3}
-            style={{
-              width: "100%", boxSizing: "border-box", padding: "10px",
-              borderRadius: "8px", border: "1px solid #BDC3C7",
-              fontFamily: "Arial", fontSize: "14px", resize: "vertical"
-            }}
-          />
-        </div>
-      ))}
+        )
+      })}
 
-      <button
-        className="btn-primary"
-        onClick={() => setStep(4)}
-        style={{ width: "100%", padding: "14px" }}
-      >
-        Next →
-      </button>
+      {(() => {
+        const answeredCount = scenarioReflections.filter(r => r.trim().length >= 15).length
+        const canProceed    = answeredCount >= 2
+        return (
+          <>
+            {!canProceed && (
+              <p style={{
+                fontSize: "12px", color: "#E87722",
+                fontFamily: "Arial", marginBottom: "8px",
+              }}>
+                Please answer at least 2 reflection questions before continuing.
+                ({answeredCount}/2 answered)
+              </p>
+            )}
+            <button
+              className="btn-primary"
+              onClick={() => setStep(4)}
+              disabled={!canProceed}
+              style={{
+                width: "100%", padding: "14px",
+                background: canProceed ? "#E87722" : "#BDC3C7",
+                cursor: canProceed ? "pointer" : "not-allowed",
+                border: "none", borderRadius: "8px", color: "white",
+                fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
+              }}
+            >
+              Next →
+            </button>
+          </>
+        )
+      })()}
     </div>
   )
 
