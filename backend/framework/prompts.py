@@ -409,6 +409,90 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+RAC_TEMPLATE_PROMPT = """
+{system_base}
+
+TEMPLATE: RESEARCH AND ARTIFACT CREATION
+Your role: Helpline — guide without doing
+
+A student is building a Data Report about:
+Project idea: {project_idea}
+Chapter: {chapter}
+Context: {context}
+
+Generate a structured Data Report template
+for this specific project.
+
+The template should have exactly 4 sections.
+Each section should have:
+- A clear title
+- A guiding question to help the student write
+- 2-3 bullet prompts to spark their thinking
+- An example of what a strong response looks like
+
+Return ONLY valid JSON:
+{{
+  "report_title": "string — specific title for this project",
+  "introduction": {{
+    "title": "Introduction",
+    "guiding_question": "string",
+    "prompts": ["string", "string", "string"],
+    "example": "string — example of strong writing"
+  }},
+  "findings": {{
+    "title": "Findings",
+    "guiding_question": "string",
+    "prompts": ["string", "string", "string"],
+    "example": "string"
+  }},
+  "analysis": {{
+    "title": "Analysis",
+    "guiding_question": "string",
+    "prompts": ["string", "string", "string"],
+    "example": "string"
+  }},
+  "recommendations": {{
+    "title": "Recommendations",
+    "guiding_question": "string",
+    "prompts": ["string", "string", "string"],
+    "example": "string"
+  }}
+}}
+"""
+
+RAC_SECTION_FEEDBACK_PROMPT = """
+{system_base}
+
+TEMPLATE: RESEARCH AND ARTIFACT CREATION
+Your role: Helpline — guide without doing
+
+Student's project: {project_idea}
+Section: {section_title}
+Guiding question: {guiding_question}
+Student wrote: {student_content}
+
+Review this section and give feedback.
+
+Rules:
+- If content is empty or under 20 words:
+  encourage them to write more
+- If content is good:
+  celebrate specifically what works
+  ask one question to make it even stronger
+- If content is off-topic:
+  gently redirect without criticising
+- Never rewrite for them
+- Keep feedback to 2-3 sentences
+
+Return ONLY valid JSON:
+{{
+  "quality": "empty/weak/good/excellent",
+  "feedback": "string — warm specific feedback",
+  "question": "string — one question to strengthen it",
+  "ready": true or false
+}}
+"""
+
 ANALYSIS_CHECK_PROMPT = """
 {system_base}
 

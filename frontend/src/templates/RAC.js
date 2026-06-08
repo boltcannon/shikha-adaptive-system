@@ -1,106 +1,447 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useUnit } from "../context/UnitContext"
+import { api } from "../api/client"
+import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
-const STEPS = [
-  { id: "research",  label: "Research",           icon: "🔍", desc: "Gather information and evidence related to your project idea." },
-  { id: "organise",  label: "Organise",            icon: "📋", desc: "Arrange your findings into a logical structure." },
-  { id: "create",    label: "Create Your Artifact",icon: "🎨", desc: "Build your artifact — poster, model, report, or presentation." },
-  { id: "present",   label: "Present",             icon: "🎤", desc: "Share your work and explain your thinking." },
-]
+const SECTION_KEYS = ["introduction", "findings", "analysis", "recommendations"]
 
 export default function RAC({ onNavigate }) {
-  const { performance, addCompletedTemplate, saveStudentProgress } = useUnit()
-  const [completedSteps, setCompletedSteps] = useState([])
-  const [notes, setNotes] = useState({})
-  const [activeStep, setActiveStep] = useState("research")
+  const {
+    sessionId,
+    performance,
+    saveStudentProgress,
+    studentProgress,
+  } = useUnit()
 
-  const toggleStep = (id) => {
-    setCompletedSteps(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+  const projectIdea = studentProgress?.project_idea || ""
+
+  const [phase, setPhase]                     = useState("setup")
+  const [template, setTemplate]               = useState(null)
+  const [currentSection, setCurrentSection]   = useState(0)
+  const [sectionContent, setSectionContent]   = useState({
+    introduction   : "",
+    findings       : "",
+    analysis       : "",
+    recommendations: "",
+  })
+  const [feedback, setFeedback]               = useState({})
+  const [loadingFeedback, setLoadingFeedback] = useState(false)
+  const [readySections, setReadySections]     = useState({})
+  const [generating, setGenerating]           = useState(false)
+  const [saving, setSaving]                   = useState(false)
+  const [artifact, setArtifact]               = useState(null)
+  const [error, setError]                     = useState("")
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [phase, currentSection])
+
+  // ── Phase 1: generate template ─────────────────────────
+  const generateTemplate = async () => {
+    if (!projectIdea.trim()) {
+      setError("No project idea found. Please go back to Project Planning.")
+      return
+    }
+    setGenerating(true)
+    setError("")
+    try {
+      const result = await api.generateRacTemplate(sessionId, projectIdea)
+      if (result.report_title) {
+        setTemplate(result)
+        setPhase("writing")
+      } else {
+        setError("Could not generate template. Try again.")
+      }
+    } catch (e) {
+      setError("Connection failed. Is the backend running?")
+    }
+    setGenerating(false)
+  }
+
+  // ── Phase 2: per-section AI feedback ──────────────────
+  const handleGetFeedback = async () => {
+    const sectionKey = SECTION_KEYS[currentSection]
+    const section    = template[sectionKey]
+    const content    = sectionContent[sectionKey]
+
+    if (!content.trim()) {
+      setError("Please write something before checking.")
+      return
+    }
+    setLoadingFeedback(true)
+    setError("")
+    try {
+      const result = await api.checkRacSection(
+        sessionId,
+        projectIdea,
+        section.title,
+        section.guiding_question,
+        content
+      )
+      setFeedback(prev => ({ ...prev, [sectionKey]: result }))
+      if (result.ready) {
+        setReadySections(prev => ({ ...prev, [sectionKey]: true }))
+      }
+    } catch (e) {
+      setError("Could not get feedback. Try again.")
+    }
+    setLoadingFeedback(false)
+  }
+
+  const handleNextSection = () => {
+    if (currentSection < SECTION_KEYS.length - 1) {
+      setCurrentSection(currentSection + 1)
+      setError("")
+    } else {
+      handleBuildArtifact()
+    }
+  }
+
+  // ── Phase 3: compile + save artifact ──────────────────
+  const handleBuildArtifact = async () => {
+    setSaving(true)
+    const sections = SECTION_KEYS.map(key => ({
+      key    : key,
+      title  : template[key].title,
+      content: sectionContent[key],
+    }))
+
+    try {
+      await api.saveRacArtifact(
+        sessionId, projectIdea, template.report_title, sections
+      )
+    } catch (e) {
+      console.log("Could not save artifact:", e)
+    }
+
+    setArtifact({ report_title: template.report_title, project_idea: projectIdea, sections })
+    setPhase("artifact")
+    saveStudentProgress({
+      current_screen     : "reflection",
+      completed_templates: [
+        ...(studentProgress?.completed_templates || []),
+        "rac",
+      ],
+    })
+    setSaving(false)
+  }
+
+  // ── PHASE: setup ──────────────────────────────────────
+  if (phase === "setup") {
+    return (
+      <div>
+        <TemplateHeader
+          template="RESEARCH AND ARTIFACT CREATION"
+          subtitle="Data Report Builder"
+        />
+
+        <div className="card" style={{ background: "#1A5276", marginBottom: "20px" }}>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px", fontFamily: "Arial", marginBottom: "4px" }}>
+            Your project
+          </p>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: "bold", fontFamily: "Arial" }}>
+            {projectIdea || "No project idea found"}
+          </p>
+        </div>
+
+        <div className="card" style={{ marginBottom: "16px" }}>
+          <p style={{ fontWeight: "bold", fontSize: "16px", color: "#1A5276", fontFamily: "Arial", marginBottom: "8px" }}>
+            Build Your Data Report
+          </p>
+          <p style={{ fontSize: "14px", color: "#5D6D7E", fontFamily: "Arial", lineHeight: "1.6", marginBottom: "16px" }}>
+            You will write a structured Data Report with 4 sections. The AI will generate
+            a template based on your project idea and guide you through each section.
+          </p>
+
+          <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
+            {["Introduction", "Findings", "Analysis", "Recommendations"].map((s, i) => (
+              <div key={s} style={{
+                background: "#F2F3F4", borderRadius: "8px", padding: "8px 12px",
+                fontSize: "13px", fontFamily: "Arial", color: "#1A5276", fontWeight: "bold",
+              }}>
+                {i + 1}. {s}
+              </div>
+            ))}
+          </div>
+
+          {error && (
+            <p style={{ color: "#C0392B", fontSize: "13px", fontFamily: "Arial", marginBottom: "12px" }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            className="btn-primary"
+            onClick={generateTemplate}
+            disabled={generating}
+            style={{ width: "100%", padding: "14px" }}
+          >
+            {generating ? "Generating your template..." : "Generate My Report Template →"}
+          </button>
+        </div>
+
+        {generating && <SimpleLoader />}
+      </div>
     )
   }
 
-  const handleContinue = () => {
-    addCompletedTemplate("rac")
-    saveStudentProgress({ current_screen: "reflection" })
-    onNavigate("reflection")
-  }
+  // ── PHASE: writing ────────────────────────────────────
+  if (phase === "writing" && template) {
+    const sectionKey = SECTION_KEYS[currentSection]
+    const section    = template[sectionKey]
+    const content    = sectionContent[sectionKey]
+    const fb         = feedback[sectionKey]
+    const isReady    = readySections[sectionKey]
+    const isLast     = currentSection === SECTION_KEYS.length - 1
+    const wordCount  = content.trim().split(/\s+/).filter(Boolean).length
 
-  return (
-    <div>
-      <TemplateHeader template="RESEARCH & ARTIFACT CREATION" subtitle="Facilitator" />
+    return (
+      <div>
+        <TemplateHeader
+          template="RESEARCH AND ARTIFACT CREATION"
+          subtitle={template.report_title}
+        />
 
-      <div className="dark-card" style={{ marginBottom: "24px" }}>
-        <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "6px" }}>YOUR PROJECT</p>
-        <p style={{ color: "white", fontFamily: "Arial", fontSize: "16px", fontWeight: "500" }}>
-          {performance.projectIdea || "Your project (set in Project Planning)"}
-        </p>
-      </div>
-
-      {/* Step tracker */}
-      {STEPS.map((step, i) => (
-        <div key={step.id} className="card" style={{
-          borderLeft: `4px solid ${completedSteps.includes(step.id) ? "#1E8449" : activeStep === step.id ? "#E87722" : "#BDC3C7"}`,
-          marginBottom: "12px", cursor: "pointer"
-        }}
-          onClick={() => setActiveStep(step.id)}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <span style={{ fontSize: "20px" }}>{step.icon}</span>
-              <div>
-                <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "14px", color: "#1A5276" }}>
-                  {i + 1}. {step.label}
-                </p>
-                <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E" }}>{step.desc}</p>
-              </div>
-            </div>
+        {/* Section progress pills */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+          {SECTION_KEYS.map((key, i) => (
             <button
-              onClick={e => { e.stopPropagation(); toggleStep(step.id) }}
+              key={key}
+              onClick={() => { setCurrentSection(i); setError("") }}
               style={{
-                background: completedSteps.includes(step.id) ? "#1E8449" : "#F2F3F4",
-                color: completedSteps.includes(step.id) ? "white" : "#5D6D7E",
-                border: "none", borderRadius: "20px", padding: "4px 12px",
-                fontSize: "12px", cursor: "pointer", fontFamily: "Arial",
-                whiteSpace: "nowrap"
+                padding: "6px 12px", borderRadius: "16px",
+                fontSize: "12px", fontWeight: "bold", fontFamily: "Arial",
+                border: "none", cursor: "pointer",
+                background: readySections[key] ? "#D5F5E3"
+                  : i === currentSection ? "#FEF9E7"
+                  : "#F2F3F4",
+                color: readySections[key] ? "#1E8449"
+                  : i === currentSection ? "#E87722"
+                  : "#BDC3C7",
               }}
             >
-              {completedSteps.includes(step.id) ? "✓ Done" : "Mark done"}
+              {readySections[key] ? "✓ " : ""}{template[key].title}
             </button>
+          ))}
+        </div>
+
+        {/* Section card */}
+        <div className="card" style={{ marginBottom: "16px" }}>
+          <p style={{
+            fontSize: "12px", color: "#E87722", fontFamily: "Arial",
+            fontWeight: "bold", marginBottom: "4px", textTransform: "uppercase",
+          }}>
+            Section {currentSection + 1} of 4
+          </p>
+          <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#1A5276", fontFamily: "Arial", marginBottom: "8px" }}>
+            {section.title}
+          </h2>
+          <p style={{ fontSize: "14px", color: "#5D6D7E", fontFamily: "Arial", fontStyle: "italic", marginBottom: "16px" }}>
+            {section.guiding_question}
+          </p>
+
+          {/* Thinking prompts */}
+          <div style={{ background: "#EBF5FB", borderRadius: "8px", padding: "12px", marginBottom: "16px" }}>
+            <p style={{
+              fontSize: "11px", fontWeight: "bold", color: "#1A5276",
+              fontFamily: "Arial", marginBottom: "8px", textTransform: "uppercase",
+            }}>
+              Think about:
+            </p>
+            {section.prompts.map((prompt, i) => (
+              <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ color: "#E87722", fontWeight: "bold", flexShrink: 0 }}>→</span>
+                <p style={{ fontSize: "13px", color: "#2C3E50", fontFamily: "Arial" }}>{prompt}</p>
+              </div>
+            ))}
           </div>
 
-          {activeStep === step.id && (
-            <textarea
-              value={notes[step.id] || ""}
-              onChange={e => setNotes(prev => ({ ...prev, [step.id]: e.target.value }))}
-              placeholder={`Notes for ${step.label}...`}
-              rows={3}
-              onClick={e => e.stopPropagation()}
+          {/* Collapsible example */}
+          <details style={{ marginBottom: "16px" }}>
+            <summary style={{ fontSize: "13px", color: "#1A5276", fontFamily: "Arial", cursor: "pointer", fontWeight: "bold" }}>
+              See an example
+            </summary>
+            <div style={{ background: "#F9F9F9", borderRadius: "6px", padding: "10px", marginTop: "8px", borderLeft: "3px solid #E87722" }}>
+              <p style={{ fontSize: "13px", color: "#5D6D7E", fontFamily: "Arial", fontStyle: "italic", lineHeight: "1.6" }}>
+                {section.example}
+              </p>
+            </div>
+          </details>
+
+          {/* Writing area */}
+          <textarea
+            value={content}
+            onChange={e => {
+              setSectionContent(prev => ({ ...prev, [sectionKey]: e.target.value }))
+              if (feedback[sectionKey]) {
+                setFeedback(prev => ({ ...prev, [sectionKey]: null }))
+                setReadySections(prev => ({ ...prev, [sectionKey]: false }))
+              }
+            }}
+            placeholder={`Write your ${section.title.toLowerCase()} here...`}
+            rows={6}
+            style={{
+              width: "100%", padding: "12px", borderRadius: "8px",
+              border: `2px solid ${isReady ? "#1E8449" : fb ? "#E87722" : "#BDC3C7"}`,
+              fontFamily: "Arial", fontSize: "14px", lineHeight: "1.6", resize: "vertical",
+            }}
+          />
+
+          <p style={{
+            fontSize: "11px",
+            color: wordCount >= 20 ? "#1E8449" : "#BDC3C7",
+            fontFamily: "Arial", textAlign: "right", marginTop: "4px",
+          }}>
+            {wordCount} words{wordCount >= 20 ? " ✓" : " (aim for 20+ words)"}
+          </p>
+        </div>
+
+        {/* AI Feedback */}
+        {fb && (
+          <div style={{
+            background: fb.ready ? "#D5F5E3" : fb.quality === "good" ? "#EBF5FB" : "#FEF9E7",
+            border: `1px solid ${fb.ready ? "#1E8449" : fb.quality === "good" ? "#1A5276" : "#B7950B"}`,
+            borderRadius: "10px", padding: "16px", marginBottom: "16px",
+          }}>
+            <p style={{
+              fontWeight: "bold", fontSize: "13px",
+              color: fb.ready ? "#1E8449" : "#1A5276",
+              fontFamily: "Arial", marginBottom: "6px",
+            }}>
+              {fb.ready ? "✓ Great work!" : "AI Feedback"}
+            </p>
+            <p style={{ fontSize: "14px", color: "#2C3E50", fontFamily: "Arial", lineHeight: "1.6", marginBottom: fb.question ? "8px" : "0" }}>
+              {fb.feedback}
+            </p>
+            {fb.question && (
+              <p style={{ fontSize: "13px", color: "#1A5276", fontFamily: "Arial", fontStyle: "italic" }}>
+                {fb.question}
+              </p>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <p style={{ color: "#C0392B", fontSize: "13px", fontFamily: "Arial", marginBottom: "12px" }}>
+            {error}
+          </p>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          {!isReady && (
+            <button
+              onClick={handleGetFeedback}
+              disabled={loadingFeedback || !content.trim()}
               style={{
-                width: "100%", marginTop: "12px", padding: "10px",
-                borderRadius: "8px", border: "1px solid #BDC3C7",
-                fontFamily: "Arial", fontSize: "14px", resize: "vertical"
+                flex: 1, padding: "12px",
+                background: content.trim() ? "#E87722" : "#BDC3C7",
+                color: "white", border: "none", borderRadius: "8px",
+                cursor: content.trim() ? "pointer" : "not-allowed",
+                fontFamily: "Arial", fontSize: "14px",
               }}
-            />
+            >
+              {loadingFeedback ? "Checking..." : "Get AI Feedback"}
+            </button>
+          )}
+
+          {(isReady || fb) && (
+            <button
+              onClick={handleNextSection}
+              disabled={saving}
+              style={{
+                flex: 1, padding: "12px", background: "#1A5276",
+                color: "white", border: "none", borderRadius: "8px",
+                cursor: "pointer", fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
+              }}
+            >
+              {saving ? "Building report..."
+                : isLast
+                ? "Build My Report →"
+                : `Next: ${template[SECTION_KEYS[currentSection + 1]]?.title} →`}
+            </button>
           )}
         </div>
-      ))}
 
-      <div style={{
-        background: "#F8F9FA", borderRadius: "8px", padding: "12px",
-        display: "flex", justifyContent: "space-between", marginBottom: "16px"
-      }}>
-        <span style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E" }}>Progress</span>
-        <span style={{ fontFamily: "Arial", fontSize: "13px", fontWeight: "bold", color: "#1A5276" }}>
-          {completedSteps.length} / {STEPS.length} steps complete
-        </span>
+        {saving && <SimpleLoader />}
       </div>
+    )
+  }
 
-      <button className="btn-primary" onClick={handleContinue}
-        style={{ width: "100%", padding: "14px" }}>
-        Continue to Reflection →
-      </button>
-    </div>
-  )
+  // ── PHASE: artifact ───────────────────────────────────
+  if (phase === "artifact" && artifact) {
+    return (
+      <div>
+        <TemplateHeader
+          template="RESEARCH AND ARTIFACT CREATION"
+          subtitle="Your Data Report"
+        />
+
+        <div style={{
+          background: "white", borderRadius: "12px",
+          border: "2px solid #1A5276", overflow: "hidden", marginBottom: "24px",
+        }}>
+          {/* Report header */}
+          <div style={{ background: "#1A5276", padding: "24px" }}>
+            <p style={{
+              color: "#E87722", fontSize: "11px", fontFamily: "Arial",
+              fontWeight: "bold", marginBottom: "4px",
+              textTransform: "uppercase", letterSpacing: "1px",
+            }}>
+              Data Report
+            </p>
+            <h2 style={{ color: "white", fontSize: "22px", fontWeight: "bold", fontFamily: "Arial" }}>
+              {artifact.report_title}
+            </h2>
+          </div>
+
+          {/* Sections */}
+          {artifact.sections.map((section, i) => (
+            <div key={section.key} style={{
+              padding: "20px 24px",
+              borderBottom: i < artifact.sections.length - 1 ? "1px solid #F2F3F4" : "none",
+            }}>
+              <p style={{
+                fontSize: "11px", fontWeight: "bold", color: "#E87722",
+                fontFamily: "Arial", marginBottom: "6px",
+                textTransform: "uppercase", letterSpacing: "0.5px",
+              }}>
+                {i + 1}. {section.title}
+              </p>
+              <p style={{
+                fontSize: "14px", color: "#2C3E50", fontFamily: "Arial",
+                lineHeight: "1.7", whiteSpace: "pre-wrap",
+              }}>
+                {section.content || "(This section was left blank)"}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Saved confirmation */}
+        <div style={{
+          background: "#D5F5E3", border: "1px solid #1E8449",
+          borderRadius: "10px", padding: "16px", textAlign: "center", marginBottom: "16px",
+        }}>
+          <p style={{ color: "#1E8449", fontWeight: "bold", fontFamily: "Arial", fontSize: "14px" }}>
+            ✓ Your report has been saved
+          </p>
+          <p style={{ color: "#5D6D7E", fontFamily: "Arial", fontSize: "13px", marginTop: "4px" }}>
+            Your teacher can see your completed report.
+          </p>
+        </div>
+
+        <button
+          className="btn-primary"
+          onClick={() => onNavigate("reflection")}
+          style={{ width: "100%", padding: "14px" }}
+        >
+          Continue to Reflection →
+        </button>
+      </div>
+    )
+  }
+
+  return <SimpleLoader />
 }

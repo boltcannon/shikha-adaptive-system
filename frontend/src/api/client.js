@@ -240,6 +240,49 @@ export const api = {
     return r.json()
   },
 
+  generateRacTemplate: async (sessionId, projectIdea) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/rac-template/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({ project_idea: projectIdea }),
+      }
+    )
+    return r.json()
+  },
+
+  checkRacSection: async (
+    sessionId, projectIdea, sectionTitle, guidingQuestion, studentContent
+  ) => {
+    const r = await fetch(
+      `${BASE_URL}/check/rac-section/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({
+          project_idea     : projectIdea,
+          section_title    : sectionTitle,
+          guiding_question : guidingQuestion,
+          student_content  : studentContent,
+        }),
+      }
+    )
+    return r.json()
+  },
+
+  saveRacArtifact: async (sessionId, projectIdea, reportTitle, sections) => {
+    const r = await fetch(
+      `${BASE_URL}/save/rac-artifact/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({ project_idea: projectIdea, report_title: reportTitle, sections }),
+      }
+    )
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(

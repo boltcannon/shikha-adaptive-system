@@ -16,6 +16,8 @@ from .prompts import (
     REFLECTION_PROMPT,
     OPEN_ENDED_CHECK_PROMPT,
     SUBTOPICS_PROMPT,
+    RAC_TEMPLATE_PROMPT,
+    RAC_SECTION_FEEDBACK_PROMPT,
 )
 
 # Load .env from the backend directory (two levels up from this file)
@@ -194,6 +196,32 @@ async def generate_subtopics(unit_input, performance={}):
         chapter=unit_input.chapter,
     )
     return await asyncio.to_thread(call_claude, prompt, 500)
+
+
+async def generate_rac_template(unit_input, project_idea, performance={}):
+    system_base = build_system_base(unit_input, performance)
+    prompt = RAC_TEMPLATE_PROMPT.format(
+        system_base  = system_base,
+        project_idea = project_idea,
+        chapter      = unit_input.chapter,
+        context      = unit_input.context,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 2000)
+
+
+async def get_rac_section_feedback(
+    unit_input, project_idea, section_title,
+    guiding_question, student_content, performance={}
+):
+    system_base = build_system_base(unit_input, performance)
+    prompt = RAC_SECTION_FEEDBACK_PROMPT.format(
+        system_base      = system_base,
+        project_idea     = project_idea,
+        section_title    = section_title,
+        guiding_question = guiding_question,
+        student_content  = student_content,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 400)
 
 
 async def generate_reflection(

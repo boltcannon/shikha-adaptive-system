@@ -22,8 +22,10 @@ from framework.mat_engine import (
     generate_mastery_question,
     generate_ncl,
     generate_provocation,
+    generate_rac_template,
     generate_reflection,
     generate_subtopics,
+    get_rac_section_feedback,
     guide_project,
 )
 from models import AnswerInput, LoginRequest, ProjectMessage, RegisterRequest, UnitInput
@@ -812,6 +814,73 @@ async def get_reflection(
         templates_completed,
         session["performance"],
     )
+
+
+# ──────────────────────────────────────────────────────────
+# RAC — Research and Artifact Creation
+# ──────────────────────────────────────────────────────────
+
+@app.post("/generate/rac-template/{session_id}")
+async def get_rac_template(session_id: str, data: dict):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    project_idea = data.get("project_idea", "")
+    if not project_idea:
+        raise HTTPException(status_code=400, detail="Project idea is required")
+
+    result = await generate_rac_template(
+        session["unit_input"],
+        project_idea,
+        session.get("performance", {}),
+    )
+
+    session.setdefault("generated_content", {})["rac_template"] = result
+    save_session_to_db(session_id, session)
+    return result
+
+
+@app.post("/check/rac-section/{session_id}")
+async def check_rac_section(session_id: str, data: dict):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    result = await get_rac_section_feedback(
+        session["unit_input"],
+        data.get("project_idea", ""),
+        data.get("section_title", ""),
+        data.get("guiding_question", ""),
+        data.get("student_content", ""),
+        session.get("performance", {}),
+    )
+    return result
+
+
+@app.post("/save/rac-artifact/{session_id}")
+async def save_rac_artifact(session_id: str, data: dict):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    artifact = {
+        "session_id"  : session_id,
+        "project_idea": data.get("project_idea"),
+        "report_title": data.get("report_title"),
+        "sections"    : data.get("sections"),
+        "created_at"  : datetime.datetime.utcnow(),
+    }
+
+    try:
+        db["artifacts"].insert_one(artifact)
+        artifact.pop("_id", None)
+    except Exception as e:
+        print(f"[WARN] Could not save artifact: {e}")
+
+    session.setdefault("generated_content", {})["rac_artifact"] = data
+    save_session_to_db(session_id, session)
+    return {"saved": True, "artifact": data}
 
 
 # ──────────────────────────────────────────────────────────
