@@ -999,13 +999,69 @@ async def get_class_results(class_code: str):
         if len(s.get("progress", {}).get("completed_templates", [])) > 0
         and not s.get("progress", {}).get("reflection_done")
     )
+    not_started = total - complete - in_progress
+
+    # Calculate class average exit ticket score (as a percentage 0-100)
+    exit_scores = []
+    for s in students:
+        score_str = s.get("progress", {}).get("exit_ticket_score")
+        if score_str:
+            try:
+                parts = str(score_str).split("/")
+                if len(parts) == 2:
+                    exit_scores.append(int(parts[0]) / int(parts[1]))
+            except (ValueError, ZeroDivisionError):
+                pass
+    avg_exit_score = round(sum(exit_scores) / len(exit_scores) * 100) if exit_scores else None
+
     return {
         "class_code"    : class_code.upper(),
         "total_students": total,
         "complete"      : complete,
         "in_progress"   : in_progress,
+        "not_started"   : not_started,
+        "avg_exit_score": avg_exit_score,
         "students"      : students,
     }
+
+
+@app.get("/teacher/classes")
+async def get_teacher_classes(current_user=Depends(get_current_user)):
+    """Return all classes created by the authenticated teacher, with student counts."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    teacher_id = current_user["user_id"]
+    classes = list(classes_collection.find(
+        {"teacher_id": teacher_id},
+        {"_id": 0, "class_code": 1, "unit_input": 1, "created_at": 1, "status": 1},
+    ))
+
+    for c in classes:
+        code = c["class_code"]
+        c["student_count"] = students_collection.count_documents({"class_code": code})
+
+        # Avg exit score for this class
+        stud_list = list(students_collection.find(
+            {"class_code": code}, {"progress.exit_ticket_score": 1, "_id": 0}
+        ))
+        exit_scores = []
+        for s in stud_list:
+            score_str = s.get("progress", {}).get("exit_ticket_score")
+            if score_str:
+                try:
+                    parts = str(score_str).split("/")
+                    if len(parts) == 2:
+                        exit_scores.append(int(parts[0]) / int(parts[1]))
+                except (ValueError, ZeroDivisionError):
+                    pass
+        c["avg_exit_score"] = round(sum(exit_scores) / len(exit_scores) * 100) if exit_scores else None
+
+        # Serialize datetime so JSON doesn't choke
+        if "created_at" in c and c["created_at"] is not None:
+            c["created_at"] = c["created_at"].isoformat()
+
+    return {"classes": classes}
 
 
 @app.put("/class/{class_code}/content")

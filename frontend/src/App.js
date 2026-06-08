@@ -3,13 +3,16 @@ import { Routes, Route, useParams, useMatch } from "react-router-dom"
 import { UnitProvider, useUnit } from "./context/UnitContext"
 import AuthScreen from "./screens/AuthScreen"
 import SimpleLoader from "./components/SimpleLoader"
+import UnitProgress from "./components/UnitProgress"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
 import StudentJoin from "./screens/StudentJoin"
 import TeacherSharePanel from "./screens/TeacherSharePanel"
 import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
+import NclReview from "./templates/NclReview"
 import Analysis from "./templates/Analysis"
+import AnalysisReview from "./templates/AnalysisReview"
 import Discussion from "./templates/Discussion"
 import MasteryGate from "./templates/MasteryGate"
 import ProjectPlanning from "./templates/ProjectPlanning"
@@ -18,6 +21,14 @@ import Reflection from "./templates/Reflection"
 import TeacherDashboard from "./screens/TeacherDashboard"
 import DevPanel from "./components/DevPanel"
 import "./App.css"
+
+// Screens that show the unit progress stepper
+const TEMPLATE_SCREENS = [
+  "provocation", "ncl", "ncl_review",
+  "analysis", "analysis_review",
+  "discussion", "masteryGate",
+  "projectPlanning", "rac", "reflection",
+]
 
 function StudentJoinWrapper({ onNavigate }) {
   const { classCode } = useParams()
@@ -91,7 +102,9 @@ function AppContent() {
       case "unitLoader":      return <UnitLoader onNavigate={navigateTo} />
       case "provocation":     return <Provocation onNavigate={navigateTo} />
       case "ncl":             return <NCL onNavigate={navigateTo} />
+      case "ncl_review":      return <NclReview onNavigate={navigateTo} />
       case "analysis":        return <Analysis onNavigate={navigateTo} />
+      case "analysis_review": return <AnalysisReview onNavigate={navigateTo} />
       case "discussion":      return <Discussion onNavigate={navigateTo} />
       case "masteryGate":     return <MasteryGate onNavigate={navigateTo} />
       case "projectPlanning": return <ProjectPlanning onNavigate={navigateTo} />
@@ -201,6 +214,11 @@ function AppContent() {
           </button>
         </div>
       </div>
+
+      {/* ── Unit progress stepper (template screens only) ─── */}
+      {mode === "student" && TEMPLATE_SCREENS.includes(screen) && (
+        <UnitProgress currentScreen={screen} />
+      )}
 
       {/* ── Main content ──────────────────────────────────── */}
       <div className="app-container">

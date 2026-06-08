@@ -62,12 +62,10 @@ export default function MasteryGate({ onNavigate }) {
   }
 
   const handleContinue = () => {
+    const pct        = masteryTotal > 0 ? masteryScore / masteryTotal : 1
+    const nextScreen = pct >= 0.5 ? "projectPlanning" : "analysis_review"
     addCompletedTemplate("masteryGate")
-    saveStudentProgress({
-      current_screen     : "projectPlanning",
-      mastery_gate_result: `${masteryScore}/${masteryTotal}`,
-    })
-    onNavigate("projectPlanning")
+    onNavigate(nextScreen)
   }
 
   // ── Loading screen while sub-topics + questions generate ──────
@@ -139,13 +137,14 @@ export default function MasteryGate({ onNavigate }) {
           const colour = score >= total * 0.8 ? "green"
                        : score >= total * 0.5 ? "amber"
                        : "red"
+          const nextScreen = score / total >= 0.5 ? "projectPlanning" : "analysis_review"
           setMasteryScore(score)
           setMasteryTotal(total)
           setMasteryDone(true)
           updatePerformance("masteryGateResult", `${score}/${total} — ${colour}`)
           saveStudentProgress({
             mastery_gate_result: `${score}/${total} — ${colour}`,
-            current_screen     : "projectPlanning",
+            current_screen     : nextScreen,
           })
         }}
       />
@@ -157,7 +156,9 @@ export default function MasteryGate({ onNavigate }) {
           onClick={handleContinue}
           style={{ width: "100%", padding: "14px", marginTop: "20px" }}
         >
-          Continue to Project Planning →
+          {masteryTotal > 0 && masteryScore / masteryTotal >= 0.5
+            ? "Continue to Project Planning →"
+            : "Review Concepts →"}
         </button>
       )}
     </div>

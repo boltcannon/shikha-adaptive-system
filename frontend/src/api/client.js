@@ -233,6 +233,13 @@ export const api = {
     return r.json()
   },
 
+  getTeacherClasses: async (token) => {
+    const r = await fetch(`${BASE_URL}/teacher/classes`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    return r.json()
+  },
+
   generateReflection: async (sessionId, exitScore, masteryResult,
     projectIdea, templatesCompleted) => {
     const r = await fetch(

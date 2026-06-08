@@ -67,6 +67,16 @@ export function UnitProvider({ children }) {
     const newProgress = { ...studentProgress, ...updates }
     setStudentProgress(newProgress)
     localStorage.setItem("studentProgress", JSON.stringify(newProgress))
+
+    // Keep performance state in sync so adaptive routing in App.js has
+    // fresh values when the student navigates after completing a template
+    if (updates.exit_ticket_score !== undefined) {
+      updatePerformance("exitTicketScore", updates.exit_ticket_score)
+    }
+    if (updates.mastery_gate_result !== undefined) {
+      updatePerformance("masteryGateResult", updates.mastery_gate_result)
+    }
+
     if (studentId) {
       api.saveProgress(studentId, newProgress).catch(() => {})
     }

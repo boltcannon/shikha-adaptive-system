@@ -157,17 +157,21 @@ export default function NCL({ onNavigate }) {
           <button
             className="btn-primary"
             onClick={() => {
+              const pct        = exitQuestions.length > 0 ? exitScore / exitQuestions.length : 1
+              const nextScreen = pct >= 0.5 ? "analysis" : "ncl_review"
               addCompletedTemplate("ncl")
               updateNclProgress({ phase: "complete" })
               saveStudentProgress({
                 exit_ticket_score: `${exitScore}/${exitQuestions.length}`,
-                current_screen   : "analysis",
+                current_screen   : nextScreen,
               })
-              onNavigate("analysis")
+              onNavigate(nextScreen)
             }}
             style={{ width: "100%", padding: "14px" }}
           >
-            Continue to Analysis →
+            {exitScore / exitQuestions.length >= 0.5
+              ? "Continue to Analysis →"
+              : "Review Key Concepts →"}
           </button>
         </div>
       )
