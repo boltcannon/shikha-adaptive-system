@@ -3,6 +3,7 @@ import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
+import { exportReportAsPDF } from "../utils/exportPDF"
 
 const SECTION_KEYS = ["introduction", "findings", "analysis", "recommendations"]
 
@@ -17,6 +18,8 @@ export default function RAC({ onNavigate }) {
     sessionId,
     saveStudentProgress,
     studentProgress,
+    studentName,
+    unitInput,
   } = useUnit()
 
   // project_idea is populated either from prior studentProgress
@@ -52,8 +55,19 @@ export default function RAC({ onNavigate }) {
   const [readySections, setReadySections]     = useState({})
   const [generating, setGenerating]           = useState(false)
   const [saving, setSaving]                   = useState(false)
-  const [artifact, setArtifact]               = useState(null)
-  const [error, setError]                     = useState("")
+  const [artifact,     setArtifact]     = useState(null)
+  const [downloading,  setDownloading]  = useState(false)
+  const [error,        setError]        = useState("")
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true)
+    try {
+      await exportReportAsPDF(artifact, studentName, unitInput)
+    } catch (e) {
+      console.error("PDF export failed:", e)
+    }
+    setDownloading(false)
+  }
 
   // Scroll to top on phase / section change
   useEffect(() => {
@@ -625,6 +639,30 @@ export default function RAC({ onNavigate }) {
             Your teacher can see your completed report.
           </p>
         </div>
+
+        <button
+          onClick={handleDownloadPDF}
+          disabled={downloading}
+          style={{
+            width          : "100%",
+            padding        : "14px",
+            background     : downloading ? "#BDC3C7" : "white",
+            color          : downloading ? "white"   : "#1A5276",
+            border         : "2px solid #1A5276",
+            borderRadius   : "8px",
+            cursor         : downloading ? "not-allowed" : "pointer",
+            fontFamily     : "Arial",
+            fontSize       : "14px",
+            fontWeight     : "bold",
+            marginBottom   : "10px",
+            display        : "flex",
+            alignItems     : "center",
+            justifyContent : "center",
+            gap            : "8px",
+          }}
+        >
+          {downloading ? "Generating PDF…" : "⬇ Download Report as PDF"}
+        </button>
 
         <button
           className="btn-primary"
