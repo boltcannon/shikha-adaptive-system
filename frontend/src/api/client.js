@@ -240,6 +240,14 @@ export const api = {
     return r.json()
   },
 
+  getRacSuggestions: async (sessionId) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/rac-suggestions/${sessionId}`,
+      { method: "POST" }
+    )
+    return r.json()
+  },
+
   generateRacTemplate: async (sessionId, projectIdea) => {
     const r = await fetch(
       `${BASE_URL}/generate/rac-template/${sessionId}`,

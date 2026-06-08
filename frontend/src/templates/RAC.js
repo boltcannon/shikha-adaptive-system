@@ -6,17 +6,39 @@ import TemplateHeader from "../components/TemplateHeader"
 
 const SECTION_KEYS = ["introduction", "findings", "analysis", "recommendations"]
 
+const DIFFICULTY_STYLE = {
+  easy  : { background: "#D5F5E3", color: "#1E8449" },
+  medium: { background: "#FEF9E7", color: "#B7950B" },
+  hard  : { background: "#FADBD8", color: "#C0392B" },
+}
+
 export default function RAC({ onNavigate }) {
   const {
     sessionId,
-    performance,
     saveStudentProgress,
     studentProgress,
   } = useUnit()
 
-  const projectIdea = studentProgress?.project_idea || ""
+  // project_idea is populated either from prior studentProgress
+  // or set freshly when the student picks a suggestion
+  const [resolvedIdea, setResolvedIdea] = useState(
+    studentProgress?.project_idea || ""
+  )
 
-  const [phase, setPhase]                     = useState("setup")
+  // ── Suggestions state ──────────────────────────────────
+  const [suggestions, setSuggestions]         = useState(null)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null)
+  const [customIdea, setCustomIdea]           = useState("")
+  const [showCustom, setShowCustom]           = useState(false)
+
+  // ── Phase state ────────────────────────────────────────
+  // Skip suggestions if we already have a saved project_idea
+  const [phase, setPhase] = useState(
+    studentProgress?.project_idea ? "setup" : "suggestions"
+  )
+
+  // ── Report-builder state ───────────────────────────────
   const [template, setTemplate]               = useState(null)
   const [currentSection, setCurrentSection]   = useState(0)
   const [sectionContent, setSectionContent]   = useState({
@@ -33,20 +55,58 @@ export default function RAC({ onNavigate }) {
   const [artifact, setArtifact]               = useState(null)
   const [error, setError]                     = useState("")
 
+  // Scroll to top on phase / section change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [phase, currentSection])
 
-  // ── Phase 1: generate template ─────────────────────────
+  // Load suggestions on mount (only in suggestions phase)
+  useEffect(() => {
+    if (phase === "suggestions") {
+      loadSuggestions()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadSuggestions = async () => {
+    setLoadingSuggestions(true)
+    try {
+      const result = await api.getRacSuggestions(sessionId)
+      if (result.suggestions) setSuggestions(result.suggestions)
+    } catch (e) {
+      console.log("Could not load suggestions:", e)
+    }
+    setLoadingSuggestions(false)
+  }
+
+  // ── Confirm project choice and move to setup ───────────
+  const handleUseProject = () => {
+    let idea = ""
+    if (showCustom && customIdea.trim()) {
+      idea = customIdea.trim()
+    } else if (selectedSuggestion !== null && suggestions) {
+      const s = suggestions[selectedSuggestion]
+      idea = `${s.title}: ${s.description}`
+    }
+    if (!idea) {
+      setError("Please select a project or write your own idea.")
+      return
+    }
+    setResolvedIdea(idea)
+    saveStudentProgress({ project_idea: idea })
+    setError("")
+    setPhase("setup")
+  }
+
+  // ── Generate report template ───────────────────────────
   const generateTemplate = async () => {
-    if (!projectIdea.trim()) {
-      setError("No project idea found. Please go back to Project Planning.")
+    if (!resolvedIdea.trim()) {
+      setError("No project idea found. Please go back and pick one.")
       return
     }
     setGenerating(true)
     setError("")
     try {
-      const result = await api.generateRacTemplate(sessionId, projectIdea)
+      const result = await api.generateRacTemplate(sessionId, resolvedIdea)
       if (result.report_title) {
         setTemplate(result)
         setPhase("writing")
@@ -59,12 +119,11 @@ export default function RAC({ onNavigate }) {
     setGenerating(false)
   }
 
-  // ── Phase 2: per-section AI feedback ──────────────────
+  // ── Per-section AI feedback ────────────────────────────
   const handleGetFeedback = async () => {
     const sectionKey = SECTION_KEYS[currentSection]
     const section    = template[sectionKey]
     const content    = sectionContent[sectionKey]
-
     if (!content.trim()) {
       setError("Please write something before checking.")
       return
@@ -73,11 +132,8 @@ export default function RAC({ onNavigate }) {
     setError("")
     try {
       const result = await api.checkRacSection(
-        sessionId,
-        projectIdea,
-        section.title,
-        section.guiding_question,
-        content
+        sessionId, resolvedIdea,
+        section.title, section.guiding_question, content
       )
       setFeedback(prev => ({ ...prev, [sectionKey]: result }))
       if (result.ready) {
@@ -98,7 +154,7 @@ export default function RAC({ onNavigate }) {
     }
   }
 
-  // ── Phase 3: compile + save artifact ──────────────────
+  // ── Compile + save artifact ────────────────────────────
   const handleBuildArtifact = async () => {
     setSaving(true)
     const sections = SECTION_KEYS.map(key => ({
@@ -106,16 +162,14 @@ export default function RAC({ onNavigate }) {
       title  : template[key].title,
       content: sectionContent[key],
     }))
-
     try {
       await api.saveRacArtifact(
-        sessionId, projectIdea, template.report_title, sections
+        sessionId, resolvedIdea, template.report_title, sections
       )
     } catch (e) {
       console.log("Could not save artifact:", e)
     }
-
-    setArtifact({ report_title: template.report_title, project_idea: projectIdea, sections })
+    setArtifact({ report_title: template.report_title, project_idea: resolvedIdea, sections })
     setPhase("artifact")
     saveStudentProgress({
       current_screen     : "reflection",
@@ -127,7 +181,129 @@ export default function RAC({ onNavigate }) {
     setSaving(false)
   }
 
-  // ── PHASE: setup ──────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // PHASE: suggestions
+  // ══════════════════════════════════════════════════════
+  if (phase === "suggestions") {
+    return (
+      <div>
+        <TemplateHeader
+          template="RESEARCH AND ARTIFACT CREATION"
+          subtitle="Choose Your Project"
+        />
+
+        <div className="card" style={{ marginBottom: "20px" }}>
+          <p style={{ fontWeight: "bold", fontSize: "16px", color: "#1A5276", fontFamily: "Arial", marginBottom: "8px" }}>
+            Based on your learning journey, here are 3 project ideas for you
+          </p>
+          <p style={{ fontSize: "13px", color: "#5D6D7E", fontFamily: "Arial" }}>
+            Pick one or write your own idea below.
+          </p>
+        </div>
+
+        {loadingSuggestions && <SimpleLoader />}
+
+        {suggestions && suggestions.map((s, i) => (
+          <div
+            key={i}
+            onClick={() => { setSelectedSuggestion(i); setShowCustom(false); setError("") }}
+            style={{
+              background  : selectedSuggestion === i ? "#EBF5FB" : "white",
+              border      : `2px solid ${selectedSuggestion === i ? "#1A5276" : "#F2F3F4"}`,
+              borderRadius: "12px",
+              padding     : "16px",
+              marginBottom: "12px",
+              cursor      : "pointer",
+              transition  : "all 0.2s",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+              <p style={{ fontWeight: "bold", fontSize: "15px", color: "#1A5276", fontFamily: "Arial" }}>
+                {s.title}
+              </p>
+              <span style={{
+                ...(DIFFICULTY_STYLE[s.difficulty] || DIFFICULTY_STYLE.medium),
+                fontSize: "11px", fontWeight: "bold", fontFamily: "Arial",
+                padding: "2px 8px", borderRadius: "10px", flexShrink: 0, marginLeft: "8px",
+              }}>
+                {s.difficulty}
+              </span>
+            </div>
+            <p style={{ fontSize: "13px", color: "#2C3E50", fontFamily: "Arial", lineHeight: "1.6", marginBottom: "8px" }}>
+              {s.description}
+            </p>
+            <p style={{ fontSize: "12px", color: "#E87722", fontFamily: "Arial", fontStyle: "italic", marginBottom: "8px" }}>
+              Why this suits you: {s.why_good}
+            </p>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {s.concepts.map(c => (
+                <span key={c} style={{
+                  background: "#F2F3F4", borderRadius: "10px", padding: "2px 8px",
+                  fontSize: "11px", color: "#1A5276", fontFamily: "Arial", fontWeight: "bold",
+                }}>
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Custom idea */}
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            onClick={() => { setShowCustom(!showCustom); setSelectedSuggestion(null); setError("") }}
+            style={{
+              background  : showCustom ? "#EBF5FB" : "white",
+              border      : `2px solid ${showCustom ? "#1A5276" : "#BDC3C7"}`,
+              borderRadius: "12px",
+              padding     : "12px 16px",
+              cursor      : "pointer",
+              fontFamily  : "Arial",
+              fontSize    : "14px",
+              color       : "#1A5276",
+              width       : "100%",
+              textAlign   : "left",
+            }}
+          >
+            ✏️ I have my own idea
+          </button>
+
+          {showCustom && (
+            <textarea
+              value={customIdea}
+              onChange={e => setCustomIdea(e.target.value)}
+              placeholder="Describe your project idea..."
+              rows={3}
+              style={{
+                width: "100%", padding: "10px", borderRadius: "8px",
+                border: "1px solid #BDC3C7", fontFamily: "Arial",
+                fontSize: "14px", marginTop: "8px",
+              }}
+            />
+          )}
+        </div>
+
+        {error && (
+          <p style={{ color: "#C0392B", fontSize: "13px", fontFamily: "Arial", marginBottom: "12px" }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          className="btn-primary"
+          onClick={handleUseProject}
+          disabled={selectedSuggestion === null && (!showCustom || !customIdea.trim())}
+          style={{ width: "100%", padding: "14px" }}
+        >
+          Use This Project →
+        </button>
+      </div>
+    )
+  }
+
+  // ══════════════════════════════════════════════════════
+  // PHASE: setup
+  // ══════════════════════════════════════════════════════
   if (phase === "setup") {
     return (
       <div>
@@ -141,8 +317,19 @@ export default function RAC({ onNavigate }) {
             Your project
           </p>
           <p style={{ color: "white", fontSize: "18px", fontWeight: "bold", fontFamily: "Arial" }}>
-            {projectIdea || "No project idea found"}
+            {resolvedIdea || "No project idea found"}
           </p>
+          <button
+            onClick={() => { setPhase("suggestions"); setError("") }}
+            style={{
+              marginTop: "10px", background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+              color: "white", fontFamily: "Arial", fontSize: "12px",
+              padding: "4px 10px", cursor: "pointer",
+            }}
+          >
+            ← Change project
+          </button>
         </div>
 
         <div className="card" style={{ marginBottom: "16px" }}>
@@ -186,7 +373,9 @@ export default function RAC({ onNavigate }) {
     )
   }
 
-  // ── PHASE: writing ────────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // PHASE: writing
+  // ══════════════════════════════════════════════════════
   if (phase === "writing" && template) {
     const sectionKey = SECTION_KEYS[currentSection]
     const section    = template[sectionKey]
@@ -259,10 +448,16 @@ export default function RAC({ onNavigate }) {
 
           {/* Collapsible example */}
           <details style={{ marginBottom: "16px" }}>
-            <summary style={{ fontSize: "13px", color: "#1A5276", fontFamily: "Arial", cursor: "pointer", fontWeight: "bold" }}>
+            <summary style={{
+              fontSize: "13px", color: "#1A5276", fontFamily: "Arial",
+              cursor: "pointer", fontWeight: "bold",
+            }}>
               See an example
             </summary>
-            <div style={{ background: "#F9F9F9", borderRadius: "6px", padding: "10px", marginTop: "8px", borderLeft: "3px solid #E87722" }}>
+            <div style={{
+              background: "#F9F9F9", borderRadius: "6px", padding: "10px",
+              marginTop: "8px", borderLeft: "3px solid #E87722",
+            }}>
               <p style={{ fontSize: "13px", color: "#5D6D7E", fontFamily: "Arial", fontStyle: "italic", lineHeight: "1.6" }}>
                 {section.example}
               </p>
@@ -369,7 +564,9 @@ export default function RAC({ onNavigate }) {
     )
   }
 
-  // ── PHASE: artifact ───────────────────────────────────
+  // ══════════════════════════════════════════════════════
+  // PHASE: artifact
+  // ══════════════════════════════════════════════════════
   if (phase === "artifact" && artifact) {
     return (
       <div>
@@ -382,7 +579,6 @@ export default function RAC({ onNavigate }) {
           background: "white", borderRadius: "12px",
           border: "2px solid #1A5276", overflow: "hidden", marginBottom: "24px",
         }}>
-          {/* Report header */}
           <div style={{ background: "#1A5276", padding: "24px" }}>
             <p style={{
               color: "#E87722", fontSize: "11px", fontFamily: "Arial",
@@ -396,7 +592,6 @@ export default function RAC({ onNavigate }) {
             </h2>
           </div>
 
-          {/* Sections */}
           {artifact.sections.map((section, i) => (
             <div key={section.key} style={{
               padding: "20px 24px",
@@ -419,7 +614,6 @@ export default function RAC({ onNavigate }) {
           ))}
         </div>
 
-        {/* Saved confirmation */}
         <div style={{
           background: "#D5F5E3", border: "1px solid #1E8449",
           borderRadius: "10px", padding: "16px", textAlign: "center", marginBottom: "16px",

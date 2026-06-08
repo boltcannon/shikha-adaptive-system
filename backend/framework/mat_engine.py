@@ -16,6 +16,7 @@ from .prompts import (
     REFLECTION_PROMPT,
     OPEN_ENDED_CHECK_PROMPT,
     SUBTOPICS_PROMPT,
+    RAC_SUGGESTIONS_PROMPT,
     RAC_TEMPLATE_PROMPT,
     RAC_SECTION_FEEDBACK_PROMPT,
 )
@@ -196,6 +197,31 @@ async def generate_subtopics(unit_input, performance={}):
         chapter=unit_input.chapter,
     )
     return await asyncio.to_thread(call_claude, prompt, 500)
+
+
+async def generate_rac_suggestions(unit_input, mastery_result, performance={}):
+    system_base = build_system_base(unit_input, performance)
+    strong = []
+    weak   = []
+    if isinstance(performance, dict):
+        for key, val in performance.items():
+            if isinstance(val, dict):
+                score = val.get("score", 0)
+                total = val.get("total", 0)
+                if total > 0:
+                    if score / total >= 0.7:
+                        strong.append(key)
+                    else:
+                        weak.append(key)
+    prompt = RAC_SUGGESTIONS_PROMPT.format(
+        system_base      = system_base,
+        chapter          = unit_input.chapter,
+        context          = unit_input.context,
+        mastery_result   = mastery_result or "Not completed",
+        strong_subtopics = ", ".join(strong) or "Not assessed",
+        weak_subtopics   = ", ".join(weak)   or "Not assessed",
+    )
+    return await asyncio.to_thread(call_claude, prompt, 1000)
 
 
 async def generate_rac_template(unit_input, project_idea, performance={}):

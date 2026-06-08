@@ -22,6 +22,7 @@ from framework.mat_engine import (
     generate_mastery_question,
     generate_ncl,
     generate_provocation,
+    generate_rac_suggestions,
     generate_rac_template,
     generate_reflection,
     generate_subtopics,
@@ -819,6 +820,21 @@ async def get_reflection(
 # ──────────────────────────────────────────────────────────
 # RAC — Research and Artifact Creation
 # ──────────────────────────────────────────────────────────
+
+@app.post("/generate/rac-suggestions/{session_id}")
+async def get_rac_suggestions(session_id: str):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    mastery_result = session.get("performance", {}).get("masteryGateResult", "")
+    result = await generate_rac_suggestions(
+        session["unit_input"],
+        mastery_result,
+        session.get("performance", {}),
+    )
+    return result
+
 
 @app.post("/generate/rac-template/{session_id}")
 async def get_rac_template(session_id: str, data: dict):

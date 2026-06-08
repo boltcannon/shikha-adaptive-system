@@ -409,6 +409,53 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+RAC_SUGGESTIONS_PROMPT = """
+{system_base}
+
+A student has just completed the Abilities phase.
+Based on their learning journey, suggest 3 project ideas.
+
+Chapter: {chapter}
+Context: {context}
+Mastery gate result: {mastery_result}
+Strong sub-topics: {strong_subtopics}
+Weak sub-topics: {weak_subtopics}
+
+Generate 3 project suggestions that:
+1. Use the chapter concepts genuinely
+2. Connect to the context naturally
+3. Are achievable by a student at this level
+4. Feel exciting and purposeful
+5. Vary in complexity — easy, medium, hard
+
+Return ONLY valid JSON:
+{{
+  "suggestions": [
+    {{
+      "title"      : "string — catchy project name",
+      "description": "string — what they will do",
+      "concepts"   : ["string", "string"],
+      "difficulty" : "easy/medium/hard",
+      "why_good"   : "string — why this suits them"
+    }},
+    {{
+      "title"      : "string",
+      "description": "string",
+      "concepts"   : ["string", "string"],
+      "difficulty" : "easy/medium/hard",
+      "why_good"   : "string"
+    }},
+    {{
+      "title"      : "string",
+      "description": "string",
+      "concepts"   : ["string", "string"],
+      "difficulty" : "easy/medium/hard",
+      "why_good"   : "string"
+    }}
+  ]
+}}
+"""
+
 RAC_TEMPLATE_PROMPT = """
 {system_base}
 
