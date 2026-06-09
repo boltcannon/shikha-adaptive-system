@@ -5,30 +5,46 @@ import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function Reflection({ onNavigate }) {
-  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
-  const [data, setData] = useState(null)
+  const {
+    sessionId,
+    generatedContent,
+    studentProgress,
+    addCompletedTemplate,
+    saveStudentProgress,
+  } = useUnit()
+
+  const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [answers, setAnswers] = useState({})
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
-    // Use pre-generated content if available — zero API call
-    if (generatedContent?.reflection) {
-      setData(generatedContent.reflection)
+
+    // Only use cached reflection if it was generated with the new
+    // personalised format (has opening_message). Old-format cache
+    // (journey_summary etc.) always triggers a fresh personalised call.
+    if (generatedContent?.reflection?.opening_message) {
+      setContent(generatedContent.reflection)
       setLoading(false)
-    } else {
-      // Fallback — only if not pre-generated
-      loadReflection()
+      return
     }
-  }, [generatedContent, sessionId]) // eslint-disable-line
+    loadReflection()
+  }, [sessionId]) // eslint-disable-line
 
   const loadReflection = async () => {
     setLoading(true)
     try {
-      const result = await api.generateReflection(sessionId, "", "", "", "")
-      setData(result)
+      const progress = studentProgress || {}
+      const result = await api.generateReflection(
+        sessionId,
+        progress.exit_ticket_score,
+        progress.mastery_gate_result,
+        progress.project_idea,
+        (progress.completed_templates || []).join(", ")
+      )
+      setContent(result)
     } catch (e) {
-      console.warn("Reflection generation failed:", e)
+      console.error("Reflection load error:", e)
     }
     setLoading(false)
   }
@@ -40,85 +56,136 @@ export default function Reflection({ onNavigate }) {
   }
 
   if (loading) return <SimpleLoader />
-  if (!data) return <p style={{ fontFamily: "Arial", color: "#C0392B" }}>Failed to generate reflection.</p>
+  if (!content) return (
+    <div style={{ textAlign: "center", padding: "40px" }}>
+      <p style={{ color: "#C0392B", fontFamily: "Arial", marginBottom: "16px" }}>
+        Could not generate your reflection. Please try again.
+      </p>
+      <button className="btn-primary" onClick={loadReflection}>
+        Try Again
+      </button>
+    </div>
+  )
+
+  const questions  = content.questions || []
+  const answeredCount = questions.filter((_, i) => (answers[i] || "").trim().length > 10).length
 
   return (
     <div>
       <TemplateHeader template="REFLECTION & CELEBRATION" subtitle="Co-Reflector" />
 
-      {/* Celebration */}
-      <div className="dark-card" style={{ textAlign: "center", marginBottom: "24px" }}>
-        <p style={{ fontSize: "48px", marginBottom: "12px" }}>🎉</p>
-        <p style={{ color: "#E87722", fontFamily: "Arial", fontSize: "11px", letterSpacing: "1px", marginBottom: "8px" }}>
-          CELEBRATION
-        </p>
-        <p style={{ color: "white", fontFamily: "Arial", fontSize: "16px", lineHeight: "1.7" }}>
-          {data.celebration_message}
-        </p>
-      </div>
-
-      {/* Journey summary */}
-      <div className="card" style={{ borderLeft: "4px solid #E87722", marginBottom: "16px" }}>
-        <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#E87722", marginBottom: "6px" }}>
-          YOUR JOURNEY
-        </p>
-        <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#2C3E50", lineHeight: "1.7" }}>
-          {data.journey_summary}
-        </p>
-      </div>
-
-      {/* Reflection questions */}
-      <h2 className="heading-2" style={{ marginBottom: "12px" }}>Reflect Deeply</h2>
-      {data.reflection_questions && data.reflection_questions.map((q, i) => (
-        <div key={i} className="card" style={{ marginBottom: "12px" }}>
-          <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#E87722", fontWeight: "bold", marginBottom: "4px" }}>
-            Question {i + 1}
+      {/* ── Personal opening message ───────────────── */}
+      {content.opening_message && (
+        <div style={{
+          background: "#1A5276", borderRadius: "12px",
+          padding: "20px 24px", marginBottom: "20px",
+        }}>
+          <p style={{
+            fontSize: "11px", color: "#E87722", fontFamily: "Arial",
+            fontWeight: "bold", letterSpacing: "1px", marginBottom: "10px",
+          }}>
+            YOUR JOURNEY
           </p>
-          <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#2C3E50", lineHeight: "1.6", marginBottom: "10px" }}>
-            {q}
+          <p style={{
+            color: "white", fontSize: "15px",
+            fontFamily: "Arial", lineHeight: "1.7",
+          }}>
+            {content.opening_message}
           </p>
-          <textarea
-            value={answers[i] || ""}
-            onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
-            placeholder="Write your reflection here..."
-            rows={3}
+        </div>
+      )}
+
+      {/* ── Reflection questions ───────────────────── */}
+      <h2 className="heading-2" style={{ marginBottom: "4px" }}>
+        Reflect Deeply
+      </h2>
+      <p style={{ fontSize: "13px", color: "#5D6D7E", fontFamily: "Arial", marginBottom: "16px" }}>
+        Answer at least {Math.min(2, questions.length)} questions to complete your reflection.
+        ({answeredCount}/{Math.min(2, questions.length)} done)
+      </p>
+
+      {questions.map((q, i) => {
+        const isAnswered = (answers[i] || "").trim().length > 10
+        return (
+          <div
+            key={q.id}
+            className="card"
             style={{
-              width: "100%", padding: "10px", borderRadius: "8px",
-              border: "1px solid #BDC3C7", fontFamily: "Arial",
-              fontSize: "13px", resize: "vertical"
+              marginBottom: "16px",
+              border: `1px solid ${isAnswered ? "#1E8449" : "#E5E7E9"}`,
+              transition: "border-color 0.2s",
             }}
-          />
-        </div>
-      ))}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "8px" }}>
+              <span style={{
+                background: isAnswered ? "#1E8449" : "#E87722",
+                color: "white", borderRadius: "50%",
+                width: "22px", height: "22px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "11px", fontWeight: "bold", fontFamily: "Arial",
+                flexShrink: 0, marginTop: "1px",
+              }}>
+                {isAnswered ? "+" : i + 1}
+              </span>
+              <p style={{
+                fontWeight: "bold", fontSize: "14px",
+                color: "#1A5276", fontFamily: "Arial", lineHeight: "1.5",
+              }}>
+                {q.question}
+              </p>
+            </div>
 
-      {/* Growth */}
-      {data.growth_observed && (
-        <div className="card" style={{ background: "#EBF5FB", marginBottom: "16px" }}>
-          <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#1A5276", marginBottom: "6px" }}>
-            Growth observed
-          </p>
-          <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#2C3E50", lineHeight: "1.6" }}>
-            {data.growth_observed}
+            <p style={{
+              fontSize: "12px", color: "#E87722", fontFamily: "Arial",
+              fontStyle: "italic", marginBottom: "10px", paddingLeft: "32px",
+            }}>
+              {q.prompt}
+            </p>
+
+            <textarea
+              value={answers[i] || ""}
+              onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+              placeholder="Write your reflection here..."
+              rows={3}
+              style={{
+                width: "100%", padding: "10px", borderRadius: "8px",
+                border: `1px solid ${isAnswered ? "#1E8449" : "#BDC3C7"}`,
+                fontFamily: "Arial", fontSize: "14px",
+                lineHeight: "1.6", resize: "vertical",
+                boxSizing: "border-box",
+                transition: "border-color 0.2s",
+              }}
+            />
+          </div>
+        )
+      })}
+
+      {/* ── Celebration note ───────────────────────── */}
+      {content.celebration_note && (
+        <div style={{
+          background: "#D5F5E3", border: "1px solid #1E8449",
+          borderRadius: "12px", padding: "20px",
+          marginBottom: "20px", textAlign: "center",
+        }}>
+          <p style={{ fontSize: "32px", marginBottom: "10px" }}>🎉</p>
+          <p style={{
+            color: "#1E8449", fontSize: "14px",
+            fontFamily: "Arial", lineHeight: "1.7",
+            fontWeight: "500",
+          }}>
+            {content.celebration_note}
           </p>
         </div>
       )}
 
-      {/* Big question answer */}
-      {data.big_question_answer && (
-        <div className="dark-card">
-          <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "8px" }}>
-            HOW YOU ANSWERED THE BIG QUESTION
-          </p>
-          <p style={{ color: "white", fontFamily: "Arial", fontSize: "15px", lineHeight: "1.7" }}>
-            {data.big_question_answer}
-          </p>
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
-        <button className="btn-primary" onClick={handleFinish}
-          style={{ flex: 1, padding: "14px" }}>
-          Start a New Unit →
+      {/* ── Finish buttons ─────────────────────────── */}
+      <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+        <button
+          className="btn-primary"
+          onClick={handleFinish}
+          style={{ flex: 1, padding: "14px" }}
+        >
+          Finish Unit →
         </button>
         <button
           onClick={() => onNavigate("teacherDashboard")}
@@ -126,7 +193,7 @@ export default function Reflection({ onNavigate }) {
             flex: 1, padding: "14px", background: "white",
             border: "2px solid #1A5276", borderRadius: "8px",
             color: "#1A5276", fontFamily: "Arial", fontSize: "14px",
-            cursor: "pointer", fontWeight: "bold"
+            cursor: "pointer", fontWeight: "bold",
           }}
         >
           View Teacher Report

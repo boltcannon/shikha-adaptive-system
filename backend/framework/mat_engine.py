@@ -252,20 +252,39 @@ async def get_rac_section_feedback(
 
 async def generate_reflection(
     unit_input,
-    exit_ticket_score,
-    mastery_gate_result,
-    project_idea,
-    templates_completed,
+    exit_ticket_score=None,
+    mastery_gate_result="",
+    project_idea="",
+    templates_completed="",
     performance={},
 ):
     system_base = build_system_base(unit_input, performance)
+
+    # Format exit ticket score with qualitative label
+    if exit_ticket_score is not None:
+        try:
+            score_num = int(exit_ticket_score)
+        except (ValueError, TypeError):
+            score_num = None
+        if score_num is not None:
+            if score_num >= 4:
+                score_text = f"{score_num}/5 (Excellent)"
+            elif score_num >= 2:
+                score_text = f"{score_num}/5 (Good effort)"
+            else:
+                score_text = f"{score_num}/5 (Needs review)"
+        else:
+            score_text = str(exit_ticket_score)
+    else:
+        score_text = "Not completed"
+
     prompt = REFLECTION_PROMPT.format(
-        system_base=system_base,
-        exit_ticket_score=exit_ticket_score,
-        mastery_gate_result=mastery_gate_result,
-        project_idea=project_idea,
-        templates_completed=templates_completed,
-        chapter=unit_input.chapter,
-        context=unit_input.context,
+        system_base         = system_base,
+        exit_ticket_score   = score_text,
+        mastery_gate_result = mastery_gate_result or "Not completed",
+        project_idea        = project_idea        or "Not started",
+        templates_completed = templates_completed  or "In progress",
+        chapter             = unit_input.chapter,
+        context             = unit_input.context,
     )
-    return await asyncio.to_thread(call_claude, prompt)
+    return await asyncio.to_thread(call_claude, prompt, 1200)

@@ -576,36 +576,68 @@ REFLECTION_PROMPT = """
 TEMPLATE: REFLECTION AND CELEBRATION
 Your role: Co-Reflector
 
-Generate a personalised reflection for this student.
+Generate personalised reflection questions
+for a student who has just completed this unit.
 
-Student journey:
-Exit ticket score: {exit_ticket_score}
-Mastery gate result: {mastery_gate_result}
-Project idea: {project_idea}
-Templates completed: {templates_completed}
-Chapter: {chapter}
-Context: {context}
+Student performance data:
+- Exit ticket score: {exit_ticket_score}
+- Mastery gate result: {mastery_gate_result}
+- Project idea: {project_idea}
+- Templates completed: {templates_completed}
+- Chapter: {chapter}
+- Context: {context}
 
-Requirements:
-- Make it feel personal — reference what
-  they specifically did
-- Reflection questions should be deep,
-  not surface level
-- Celebration should feel genuinely earned
-- Connect back to the Big Question
+Use this data to make every question feel
+personal to THIS student's journey.
+
+Rules:
+- If exit ticket score mentions "Needs review":
+  acknowledge the struggle warmly, ask what
+  made it hard
+- If exit ticket score mentions "Excellent":
+  celebrate, ask what clicked and why
+- Reference their actual project idea by name
+- Reference specific sub-topics if mastery
+  gate shows weakness
+- Never make the student feel bad about
+  low scores — frame as learning
+- Questions should feel conversational
+  not clinical
+- Each question should reference something
+  specific from their data
 
 Return ONLY valid JSON, no other text:
 {{
-  "journey_summary": "string — personal summary",
-  "reflection_questions": [
-    "string",
-    "string",
-    "string",
-    "string",
-    "string"
+  "opening_message": "string — warm personal opening
+    that references their journey, 2-3 sentences
+    mentioning their actual scores and project",
+  "questions": [
+    {{
+      "id"      : 1,
+      "question": "string — personalised question
+        referencing their actual experience",
+      "prompt"  : "string — a gentle follow-up
+        to help them think deeper"
+    }},
+    {{
+      "id"      : 2,
+      "question": "string",
+      "prompt"  : "string"
+    }},
+    {{
+      "id"      : 3,
+      "question": "string",
+      "prompt"  : "string"
+    }},
+    {{
+      "id"      : 4,
+      "question": "string — about their project
+        specifically, what they would do differently",
+      "prompt"  : "string"
+    }}
   ],
-  "celebration_message": "string",
-  "growth_observed": "string",
-  "big_question_answer": "string — how they answered it"
+  "celebration_note": "string — genuine specific
+    celebration of what they achieved, references
+    their actual scores and journey, 2-3 sentences"
 }}
 """

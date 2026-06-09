@@ -7,7 +7,7 @@ import string
 import uuid
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -416,7 +416,14 @@ async def generate_all_templates(session_id: str):
         generate_provocation(unit_input, session["performance"]),
         generate_analysis(unit_input, session["performance"]),
         generate_discussion(unit_input, session["performance"]),
-        generate_reflection(unit_input, "", "", "", "", session["performance"]),
+        generate_reflection(
+            unit_input,
+            session["performance"].get("exitTicketScore"),
+            session["performance"].get("masteryGateResult", ""),
+            session["performance"].get("projectIdea", ""),
+            "",
+            session["performance"],
+        ),
         generate_subtopics(unit_input, session["performance"]),
         return_exceptions=True,
     )
@@ -843,21 +850,39 @@ async def project_guide(project_message: ProjectMessage):
 @app.post("/generate/reflection/{session_id}")
 async def get_reflection(
     session_id: str,
-    exit_ticket_score: str = "",
-    mastery_gate_result: str = "",
-    project_idea: str = "",
-    templates_completed: str = "",
+    data: dict = Body(default={}),
 ):
-    session = _get_session(session_id)
-    # Reflection is always personalised — never serve from cache
-    return await generate_reflection(
+    """Generate a personalised reflection using actual student performance data."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Pull performance data from request body first, then fall back to session
+    perf = session.get("performance", {})
+    exit_ticket_score   = data.get("exit_ticket_score")
+    mastery_gate_result = data.get("mastery_gate_result", "")
+    project_idea        = data.get("project_idea", "")
+    templates_completed = data.get("templates_completed", "")
+
+    if exit_ticket_score is None:
+        exit_ticket_score = perf.get("exitTicketScore")
+    if not mastery_gate_result:
+        mastery_gate_result = perf.get("masteryGateResult", "")
+
+    result = await generate_reflection(
         session["unit_input"],
         exit_ticket_score,
         mastery_gate_result,
         project_idea,
         templates_completed,
-        session["performance"],
+        perf,
     )
+
+    # Cache the personalised reflection in the session
+    session.setdefault("generated_content", {})["reflection"] = result
+    save_session_to_db(session_id, session)
+
+    return result
 
 
 # ──────────────────────────────────────────────────────────

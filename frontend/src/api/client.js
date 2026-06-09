@@ -291,15 +291,25 @@ export const api = {
     return r.json()
   },
 
-  generateReflection: async (sessionId, exitScore, masteryResult,
-    projectIdea, templatesCompleted) => {
+  generateReflection: async (
+    sessionId,
+    exitTicketScore,
+    masteryGateResult,
+    projectIdea,
+    templatesCompleted
+  ) => {
     const r = await fetch(
-      `${BASE_URL}/generate/reflection/${sessionId}` +
-      `?exit_ticket_score=${encodeURIComponent(exitScore)}` +
-      `&mastery_gate_result=${encodeURIComponent(masteryResult)}` +
-      `&project_idea=${encodeURIComponent(projectIdea)}` +
-      `&templates_completed=${encodeURIComponent(templatesCompleted)}`,
-      { method: "POST" }
+      `${BASE_URL}/generate/reflection/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({
+          exit_ticket_score  : exitTicketScore,
+          mastery_gate_result: masteryGateResult,
+          project_idea       : projectIdea,
+          templates_completed: templatesCompleted,
+        }),
+      }
     )
     return r.json()
   }
