@@ -1273,10 +1273,6 @@ async def regenerate_template(class_code: str, data: dict):
         new_content = await generate_discussion(unit_input, performance)
     elif template == "reflection":
         new_content = await generate_reflection(unit_input, "", "", "", "", performance)
-    elif template == "ncl_1":
-        new_content = await generate_ncl(unit_input, "subtopic 1", performance)
-    elif template == "ncl_2":
-        new_content = await generate_ncl(unit_input, "subtopic 2", performance)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown template: {template}")
 

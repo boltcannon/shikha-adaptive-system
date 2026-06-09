@@ -2,14 +2,14 @@ import React, { useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
-// These keys match what /unit/generate-all stores in session["generated_content"]
+// Keys match what /unit/generate-all stores in session["generated_content"].
+// NCL is a nested dict { subtopic_key: {...}, ... } so we skip regenerate for it.
 const EDITABLE_TEMPLATES = [
-  { key: "provocation",    label: "Provocation" },
-  { key: "ncl_1",          label: "NCL — Subtopic 1" },
-  { key: "ncl_2",          label: "NCL — Subtopic 2" },
-  { key: "analysis",       label: "Analysis" },
-  { key: "discussion",     label: "Discussion" },
-  { key: "reflection",     label: "Reflection" },
+  { key: "provocation",  label: "Provocation" },
+  { key: "ncl",          label: "New Content Learning", noRegenerate: true },
+  { key: "analysis",     label: "Analysis" },
+  { key: "discussion",   label: "Discussion" },
+  { key: "reflection",   label: "Reflection" },
 ]
 
 export default function TeacherSharePanel({ onClose, onStartStudentView }) {
@@ -246,7 +246,7 @@ export default function TeacherSharePanel({ onClose, onStartStudentView }) {
 
                     {hasContent && (
                       <div style={{ display: "flex", gap: "6px" }}>
-                        {classCode && (
+                        {classCode && !t.noRegenerate && (
                           <button
                             onClick={() => regenerateTemplate(t.key)}
                             disabled={isRegenerating || regenerating !== null}
