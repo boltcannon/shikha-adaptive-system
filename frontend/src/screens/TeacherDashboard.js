@@ -33,8 +33,8 @@ function getStudentStatus(student) {
 }
 
 function getRecommendation(student) {
-  const p           = student.progress || {}
-  const exitScore   = p.exit_ticket_score          // already numeric from backend
+  const p             = student.progress || {}
+  const exitScore     = p.exit_ticket_score
   const masteryResult = p.mastery_gate_result || ""
 
   if (exitScore == null)
@@ -52,6 +52,76 @@ function getRecommendation(student) {
       return { template: "Transfer Phase", reason: "Ready for project work" }
   }
   return { template: "Continue", reason: "On track" }
+}
+
+function getUrgency(student) {
+  const p             = student.progress || {}
+  const exitScore     = p.exit_ticket_score
+  const masteryResult = p.mastery_gate_result || ""
+  const completed     = p.completed_templates || []
+
+  // Critical — exit ticket very low
+  if (exitScore !== null && exitScore !== undefined && exitScore < 2) {
+    return {
+      level : "critical",
+      label : "Needs Help Now",
+      reason: "Exit ticket score below 2/5",
+      color : "#C0392B",
+      bg    : "#FADBD8",
+      icon  : "🔴",
+    }
+  }
+
+  // Critical — mastery gate very low
+  if (masteryResult) {
+    const parts = masteryResult.split("/")
+    const score = parseInt(parts[0]) || 0
+    const total = parseInt(parts[1]) || 6
+    if (total > 0 && score / total < 0.4) {
+      return {
+        level : "critical",
+        label : "Needs Help Now",
+        reason: "Mastery Gate below 40%",
+        color : "#C0392B",
+        bg    : "#FADBD8",
+        icon  : "🔴",
+      }
+    }
+  }
+
+  // Warning — exit ticket borderline
+  if (exitScore !== null && exitScore !== undefined && exitScore < 3) {
+    return {
+      level : "warning",
+      label : "Check In",
+      reason: "Exit ticket score below 3/5",
+      color : "#B7950B",
+      bg    : "#FEF9E7",
+      icon  : "🟡",
+    }
+  }
+
+  // Warning — not started yet
+  if (completed.length === 0) {
+    return {
+      level : "warning",
+      label : "Not Started",
+      reason: "Student has not begun the unit",
+      color : "#B7950B",
+      bg    : "#FEF9E7",
+      icon  : "🟡",
+    }
+  }
+
+  // On track
+  return {
+    level : "good",
+    label : "On Track",
+    reason: "Performing well",
+    color : "#1E8449",
+    bg    : "#D5F5E3",
+    icon  : "🟢",
+  }
 }
 
 // ── Shared UI pieces ─────────────────────────────────────────
@@ -104,14 +174,98 @@ function SummaryCards({ results }) {
   )
 }
 
-function StudentTable({ students, onSelectStudent, selectedStudent, columns }) {
+function FilterBar({ students, filter, onFilter }) {
+  const counts = {
+    all     : students.length,
+    critical: students.filter(s => getUrgency(s).level === "critical").length,
+    warning : students.filter(s => getUrgency(s).level === "warning").length,
+    good    : students.filter(s => getUrgency(s).level === "good").length,
+  }
+
+  const buttons = [
+    { key: "all",      label: `All Students (${counts.all})`,       color: "#1A5276", bg: "#EBF5FB" },
+    { key: "critical", label: `🔴 Needs Help (${counts.critical})`,  color: "#C0392B", bg: "#FADBD8" },
+    { key: "warning",  label: `🟡 Check In (${counts.warning})`,     color: "#B7950B", bg: "#FEF9E7" },
+    { key: "good",     label: `🟢 On Track (${counts.good})`,        color: "#1E8449", bg: "#D5F5E3" },
+  ]
+
+  return (
+    <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+      {buttons.map(btn => (
+        <button
+          key={btn.key}
+          onClick={() => onFilter(btn.key)}
+          style={{
+            padding     : "6px 14px",
+            borderRadius: "20px",
+            border      : `2px solid ${filter === btn.key ? btn.color : "#E5E7E9"}`,
+            background  : filter === btn.key ? btn.bg : "white",
+            color       : filter === btn.key ? btn.color : "#5D6D7E",
+            cursor      : "pointer",
+            fontFamily  : "Arial",
+            fontSize    : "13px",
+            fontWeight  : filter === btn.key ? "bold" : "normal",
+            transition  : "all 0.15s",
+          }}
+        >
+          {btn.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function StudentTable({ students, onSelectStudent, selectedStudent, columns, filter = "all" }) {
+  // Filter by urgency level
+  const filtered = students.filter(s =>
+    filter === "all" ? true : getUrgency(s).level === filter
+  )
+
+  // Sort: critical → warning → good
+  const URGENCY_ORDER = { critical: 0, warning: 1, good: 2 }
+  const sorted = [...filtered].sort(
+    (a, b) => URGENCY_ORDER[getUrgency(a).level] - URGENCY_ORDER[getUrgency(b).level]
+  )
+
+  // Prepend urgency status as first column
+  const urgencyColumn = {
+    key   : "_urgency",
+    label : "Status",
+    render: s => {
+      const u = getUrgency(s)
+      return (
+        <div>
+          <span style={{
+            background  : u.bg,
+            color       : u.color,
+            padding     : "3px 8px",
+            borderRadius: "10px",
+            fontSize    : "11px",
+            fontWeight  : "bold",
+            fontFamily  : "Arial",
+            display     : "block",
+            marginBottom: "2px",
+            whiteSpace  : "nowrap",
+          }}>
+            {u.icon} {u.label}
+          </span>
+          <span style={{ fontSize: "10px", color: "#BDC3C7", fontFamily: "Arial" }}>
+            {u.reason}
+          </span>
+        </div>
+      )
+    },
+  }
+
+  const allColumns = [urgencyColumn, ...columns]
+
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Arial", fontSize: "13px" }}>
           <thead>
             <tr style={{ background: "#F2F3F4" }}>
-              {columns.map(col => (
+              {allColumns.map(col => (
                 <th key={col.key} style={{
                   padding: "10px 14px", textAlign: "left",
                   color: "#1A5276", fontWeight: "bold",
@@ -123,44 +277,64 @@ function StudentTable({ students, onSelectStudent, selectedStudent, columns }) {
             </tr>
           </thead>
           <tbody>
-            {students.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} style={{ padding: "24px", textAlign: "center", color: "#BDC3C7" }}>
-                  No students have joined yet
+                <td colSpan={allColumns.length} style={{ padding: "24px", textAlign: "center", color: "#BDC3C7" }}>
+                  {filter === "all" ? "No students have joined yet" : "No students in this category"}
                 </td>
               </tr>
-            ) : students.map((student, i) => (
-              <tr
-                key={student.student_id || i}
-                onClick={() => onSelectStudent(student)}
-                style={{
-                  borderBottom: "1px solid #F2F3F4",
-                  background: selectedStudent?.student_id === student.student_id
-                    ? "#EBF5FB" : i % 2 === 0 ? "white" : "#FAFAFA",
-                  cursor: "pointer",
-                  transition: "background 0.1s",
-                }}
-              >
-                {columns.map(col => (
-                  <td key={col.key} style={{ padding: "10px 14px" }}>
-                    {col.render ? col.render(student) : (student[col.key] || "—")}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            ) : sorted.map((student, i) => {
+              const urgency    = getUrgency(student)
+              const isSelected = selectedStudent?.student_id === student.student_id
+              return (
+                <tr
+                  key={student.student_id || i}
+                  onClick={() => onSelectStudent(student)}
+                  style={{
+                    borderBottom: "1px solid #F2F3F4",
+                    background  : isSelected
+                      ? "#EBF5FB"
+                      : urgency.level === "critical"
+                      ? "#FFF5F5"
+                      : i % 2 === 0 ? "white" : "#FAFAFA",
+                    cursor    : "pointer",
+                    borderLeft: urgency.level === "critical"
+                      ? "4px solid #C0392B"
+                      : urgency.level === "warning"
+                      ? "4px solid #F0B93B"
+                      : "4px solid transparent",
+                    transition: "background 0.1s",
+                  }}
+                >
+                  {allColumns.map(col => (
+                    <td key={col.key} style={{ padding: "10px 14px" }}>
+                      {col.render ? col.render(student) : (student[col.key] || "—")}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
+
+      {filter !== "all" && sorted.length > 0 && (
+        <p style={{ fontSize: "12px", color: "#5D6D7E", fontFamily: "Arial", padding: "8px 14px", borderTop: "1px solid #F2F3F4" }}>
+          Showing {sorted.length} of {students.length} student{students.length !== 1 ? "s" : ""}
+        </p>
+      )}
     </div>
   )
 }
 
 // ── Tab components ────────────────────────────────────────────
 
-function OverviewTab({ results, onSelectStudent, selectedStudent }) {
+function OverviewTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
   return (
     <div>
       <SummaryCards results={results} />
+
+      <FilterBar students={results.students || []} filter={filter} onFilter={onFilter} />
 
       <div className="card" style={{ marginBottom: "16px" }}>
         <p style={{ fontWeight: "bold", fontSize: "14px", color: "#1A5276", fontFamily: "Arial", marginBottom: "12px" }}>
@@ -195,6 +369,7 @@ function OverviewTab({ results, onSelectStudent, selectedStudent }) {
         students={results.students || []}
         onSelectStudent={onSelectStudent}
         selectedStudent={selectedStudent}
+        filter={filter}
         columns={[
           { key: "student_name", label: "Student" },
           { key: "templates",    label: "Templates",
@@ -204,7 +379,7 @@ function OverviewTab({ results, onSelectStudent, selectedStudent }) {
               ? `${s.progress.exit_ticket_score}/5` : "—" },
           { key: "mastery",      label: "Mastery",
             render: s => s.progress?.mastery_gate_result || "—" },
-          { key: "status",       label: "Status",
+          { key: "status",       label: "Journey",
             render: s => <StatusBadge status={getStudentStatus(s)} /> },
         ]}
       />
@@ -212,7 +387,7 @@ function OverviewTab({ results, onSelectStudent, selectedStudent }) {
   )
 }
 
-function LiveTab({ results, onSelectStudent, selectedStudent }) {
+function LiveTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
   return (
     <div>
       <div className="card" style={{ marginBottom: "16px" }}>
@@ -223,22 +398,26 @@ function LiveTab({ results, onSelectStudent, selectedStudent }) {
           Based on last saved progress
         </p>
       </div>
+
+      <FilterBar students={results.students || []} filter={filter} onFilter={onFilter} />
+
       <StudentTable
         students={results.students || []}
         onSelectStudent={onSelectStudent}
         selectedStudent={selectedStudent}
+        filter={filter}
         columns={[
-          { key: "student_name",  label: "Student" },
-          { key: "current",       label: "Currently On",
+          { key: "student_name", label: "Student" },
+          { key: "current",      label: "Currently On",
             render: s => TEMPLATE_LABELS[s.progress?.current_screen]
               || s.progress?.current_screen || "Not started" },
-          { key: "last",          label: "Last Completed",
+          { key: "last",         label: "Last Completed",
             render: s => {
               const done = s.progress?.completed_templates || []
               if (!done.length) return "None"
               return TEMPLATE_LABELS[done[done.length - 1]] || done[done.length - 1]
             }},
-          { key: "progress",      label: "Progress",
+          { key: "progress",     label: "Progress",
             render: s => {
               const count = (s.progress?.completed_templates || []).length
               const pct   = Math.round((count / 8) * 100)
@@ -251,7 +430,7 @@ function LiveTab({ results, onSelectStudent, selectedStudent }) {
                 </div>
               )
             }},
-          { key: "status",        label: "Status",
+          { key: "status",       label: "Journey",
             render: s => <StatusBadge status={getStudentStatus(s)} /> },
         ]}
       />
@@ -259,34 +438,34 @@ function LiveTab({ results, onSelectStudent, selectedStudent }) {
   )
 }
 
-function ExitTicketTab({ results, onSelectStudent, selectedStudent }) {
+function ExitTicketTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
   const dist = results.score_distribution || {}
   return (
     <div>
       <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
         {[
-          { label: "Strong (4–5)",         count: dist.green || 0, bg: "#D5F5E3", color: "#1E8449" },
-          { label: "Developing (2–3)",      count: dist.amber || 0, bg: "#FEF9E7", color: "#B7950B" },
-          { label: "Needs Support (0–1)",   count: dist.red   || 0, bg: "#FADBD8", color: "#C0392B" },
+          { label: "Strong (4–5)",       count: dist.green || 0, bg: "#D5F5E3", color: "#1E8449" },
+          { label: "Developing (2–3)",   count: dist.amber || 0, bg: "#FEF9E7", color: "#B7950B" },
+          { label: "Needs Support (0–1)",count: dist.red   || 0, bg: "#FADBD8", color: "#C0392B" },
         ].map(item => (
           <div key={item.label} style={{
-            flex: 1, background: item.bg,
-            borderRadius: "10px", padding: "14px", textAlign: "center",
+            flex: 1, background: item.bg, borderRadius: "10px", padding: "14px", textAlign: "center",
           }}>
             <p style={{ fontSize: "28px", fontWeight: "bold", color: item.color, fontFamily: "Arial", marginBottom: "2px" }}>
               {item.count}
             </p>
-            <p style={{ fontSize: "11px", color: "#5D6D7E", fontFamily: "Arial" }}>
-              {item.label}
-            </p>
+            <p style={{ fontSize: "11px", color: "#5D6D7E", fontFamily: "Arial" }}>{item.label}</p>
           </div>
         ))}
       </div>
+
+      <FilterBar students={results.students || []} filter={filter} onFilter={onFilter} />
 
       <StudentTable
         students={results.students || []}
         onSelectStudent={onSelectStudent}
         selectedStudent={selectedStudent}
+        filter={filter}
         columns={[
           { key: "student_name", label: "Student" },
           { key: "score",        label: "Score",
@@ -323,7 +502,7 @@ function ExitTicketTab({ results, onSelectStudent, selectedStudent }) {
   )
 }
 
-function MasteryTab({ results, onSelectStudent, selectedStudent }) {
+function MasteryTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
   return (
     <div>
       <div className="card" style={{ marginBottom: "16px" }}>
@@ -334,15 +513,19 @@ function MasteryTab({ results, onSelectStudent, selectedStudent }) {
           Click a student to see their full journey in the panel
         </p>
       </div>
+
+      <FilterBar students={results.students || []} filter={filter} onFilter={onFilter} />
+
       <StudentTable
         students={results.students || []}
         onSelectStudent={onSelectStudent}
         selectedStudent={selectedStudent}
+        filter={filter}
         columns={[
           { key: "student_name",   label: "Student" },
           { key: "mastery_result", label: "Result",
             render: s => s.progress?.mastery_gate_result || "—" },
-          { key: "mastery_band",   label: "Status",
+          { key: "mastery_band",   label: "Gate Status",
             render: s => {
               const result = s.progress?.mastery_gate_result || ""
               if (!result) return "—"
@@ -369,7 +552,7 @@ function MasteryTab({ results, onSelectStudent, selectedStudent }) {
   )
 }
 
-function RecommendationsTab({ results, onSelectStudent, selectedStudent }) {
+function RecommendationsTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
   return (
     <div>
       <div className="card" style={{ marginBottom: "16px" }}>
@@ -380,13 +563,17 @@ function RecommendationsTab({ results, onSelectStudent, selectedStudent }) {
           Based on exit ticket and mastery gate results
         </p>
       </div>
+
+      <FilterBar students={results.students || []} filter={filter} onFilter={onFilter} />
+
       <StudentTable
         students={results.students || []}
         onSelectStudent={onSelectStudent}
         selectedStudent={selectedStudent}
+        filter={filter}
         columns={[
-          { key: "student_name",  label: "Student" },
-          { key: "recommended",   label: "Recommended Template",
+          { key: "student_name", label: "Student" },
+          { key: "recommended",  label: "Recommended Template",
             render: s => {
               const rec = getRecommendation(s)
               return (
@@ -399,15 +586,15 @@ function RecommendationsTab({ results, onSelectStudent, selectedStudent }) {
                 </span>
               )
             }},
-          { key: "reason",        label: "Reason",
+          { key: "reason",       label: "Reason",
             render: s => (
               <span style={{ fontSize: "12px", color: "#5D6D7E", fontFamily: "Arial" }}>
                 {getRecommendation(s).reason}
               </span>
             )},
-          { key: "priority",      label: "Priority",
+          { key: "priority",     label: "Priority",
             render: s => {
-              const rec = getRecommendation(s)
+              const rec    = getRecommendation(s)
               const urgent = rec.template === "New Content Learning"
               return (
                 <span style={{
@@ -426,18 +613,27 @@ function RecommendationsTab({ results, onSelectStudent, selectedStudent }) {
   )
 }
 
-function FinalReportTab({ results, onSelectStudent, selectedStudent }) {
-  const complete   = (results.students || []).filter(s => s.progress?.reflection_done)
-  const inProgress = (results.students || []).filter(
+function FinalReportTab({ results, onSelectStudent, selectedStudent, filter, onFilter }) {
+  const allStudents = results.students || []
+
+  // Apply urgency filter before splitting into groups
+  const visible = filter === "all"
+    ? allStudents
+    : allStudents.filter(s => getUrgency(s).level === filter)
+
+  const complete   = visible.filter(s => s.progress?.reflection_done)
+  const inProgress = visible.filter(
     s => !s.progress?.reflection_done && (s.progress?.completed_templates || []).length > 0
   )
-  const notStarted = (results.students || []).filter(
+  const notStarted = visible.filter(
     s => (s.progress?.completed_templates || []).length === 0
   )
 
   return (
     <div>
       <SummaryCards results={results} />
+
+      <FilterBar students={allStudents} filter={filter} onFilter={onFilter} />
 
       {complete.length > 0 && (
         <div style={{ marginBottom: "20px" }}>
@@ -448,6 +644,7 @@ function FinalReportTab({ results, onSelectStudent, selectedStudent }) {
             students={complete}
             onSelectStudent={onSelectStudent}
             selectedStudent={selectedStudent}
+            filter="all"
             columns={[
               { key: "student_name", label: "Student" },
               { key: "exit",    label: "Exit Ticket",
@@ -475,6 +672,7 @@ function FinalReportTab({ results, onSelectStudent, selectedStudent }) {
             students={inProgress}
             onSelectStudent={onSelectStudent}
             selectedStudent={selectedStudent}
+            filter="all"
             columns={[
               { key: "student_name", label: "Student" },
               { key: "current",      label: "Currently On",
@@ -497,6 +695,7 @@ function FinalReportTab({ results, onSelectStudent, selectedStudent }) {
             students={notStarted}
             onSelectStudent={onSelectStudent}
             selectedStudent={selectedStudent}
+            filter="all"
             columns={[
               { key: "student_name", label: "Student" },
               { key: "status",       label: "Status",
@@ -506,10 +705,12 @@ function FinalReportTab({ results, onSelectStudent, selectedStudent }) {
         </div>
       )}
 
-      {(results.students || []).length === 0 && (
+      {visible.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px" }}>
           <p style={{ color: "#BDC3C7", fontFamily: "Arial" }}>
-            No students have joined this class yet
+            {filter === "all"
+              ? "No students have joined this class yet"
+              : "No students match this filter"}
           </p>
         </div>
       )}
@@ -523,12 +724,14 @@ function StudentPanel({ student, onClose }) {
   const p         = student.progress || {}
   const completed = p.completed_templates || []
   const rec       = getRecommendation(student)
+  const urgency   = getUrgency(student)
 
   return (
     <div style={{
       width: "272px", flexShrink: 0,
       background: "white", borderRadius: "12px",
-      border: "1px solid #BDC3C7", padding: "16px",
+      border: `1px solid ${urgency.level === "critical" ? "#E8A5A5" : urgency.level === "warning" ? "#F0D080" : "#BDC3C7"}`,
+      padding: "16px",
       height: "fit-content", position: "sticky", top: "20px",
     }}>
       {/* Header */}
@@ -537,10 +740,19 @@ function StudentPanel({ student, onClose }) {
         marginBottom: "14px", paddingBottom: "12px", borderBottom: "1px solid #F2F3F4",
       }}>
         <div>
-          <p style={{ fontWeight: "bold", fontSize: "15px", color: "#1A5276", fontFamily: "Arial", marginBottom: "4px" }}>
+          <p style={{ fontWeight: "bold", fontSize: "15px", color: "#1A5276", fontFamily: "Arial", marginBottom: "6px" }}>
             {student.student_name}
           </p>
-          <StatusBadge status={getStudentStatus(student)} />
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <StatusBadge status={getStudentStatus(student)} />
+            <span style={{
+              background: urgency.bg, color: urgency.color,
+              padding: "2px 8px", borderRadius: "10px",
+              fontSize: "11px", fontWeight: "bold", fontFamily: "Arial",
+            }}>
+              {urgency.icon} {urgency.label}
+            </span>
+          </div>
         </div>
         <button
           onClick={onClose}
@@ -549,6 +761,18 @@ function StudentPanel({ student, onClose }) {
           &times;
         </button>
       </div>
+
+      {/* Urgency reason callout if not good */}
+      {urgency.level !== "good" && (
+        <div style={{
+          background: urgency.bg, borderRadius: "6px",
+          padding: "8px 10px", marginBottom: "14px",
+          fontSize: "12px", color: urgency.color,
+          fontFamily: "Arial", fontWeight: "500",
+        }}>
+          {urgency.reason}
+        </div>
+      )}
 
       {/* Journey */}
       <p style={{ fontSize: "11px", fontWeight: "bold", color: "#5D6D7E", fontFamily: "Arial", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -606,8 +830,8 @@ function StudentPanel({ student, onClose }) {
       <p style={{ fontSize: "11px", fontWeight: "bold", color: "#5D6D7E", fontFamily: "Arial", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
         Recommended Next
       </p>
-      <div style={{ background: "#EBF5FB", borderRadius: "8px", padding: "10px" }}>
-        <p style={{ fontWeight: "bold", fontSize: "13px", color: "#1A5276", fontFamily: "Arial", marginBottom: "4px" }}>
+      <div style={{ background: urgency.level === "critical" ? "#FADBD8" : "#EBF5FB", borderRadius: "8px", padding: "10px" }}>
+        <p style={{ fontWeight: "bold", fontSize: "13px", color: urgency.level === "critical" ? "#C0392B" : "#1A5276", fontFamily: "Arial", marginBottom: "4px" }}>
           {rec.template}
         </p>
         <p style={{ fontSize: "12px", color: "#5D6D7E", fontFamily: "Arial" }}>
@@ -623,14 +847,15 @@ function StudentPanel({ student, onClose }) {
 export default function TeacherDashboard({ onBack }) {
   const { token, currentUser } = useUnit()
 
-  const [myClasses,      setMyClasses]      = useState([])
-  const [selectedClass,  setSelectedClass]  = useState(null)
-  const [classResults,   setClassResults]   = useState(null)
-  const [activeTab,      setActiveTab]      = useState("overview")
-  const [selectedStudent,setSelectedStudent]= useState(null)
-  const [loadingClasses, setLoadingClasses] = useState(true)
-  const [loadingResults, setLoadingResults] = useState(false)
-  const [classCodeInput, setClassCodeInput] = useState("")
+  const [myClasses,       setMyClasses]       = useState([])
+  const [selectedClass,   setSelectedClass]   = useState(null)
+  const [classResults,    setClassResults]    = useState(null)
+  const [activeTab,       setActiveTab]       = useState("overview")
+  const [selectedStudent, setSelectedStudent] = useState(null)
+  const [loadingClasses,  setLoadingClasses]  = useState(true)
+  const [loadingResults,  setLoadingResults]  = useState(false)
+  const [classCodeInput,  setClassCodeInput]  = useState("")
+  const [filter,          setFilter]          = useState("all")
 
   useEffect(() => {
     loadMyClasses()
@@ -656,6 +881,7 @@ export default function TeacherDashboard({ onBack }) {
   const loadClassResults = async (code) => {
     setLoadingResults(true)
     setSelectedStudent(null)
+    setFilter("all")
     try {
       const data = await api.getClassResults(code)
       setClassResults(data)
@@ -680,10 +906,23 @@ export default function TeacherDashboard({ onBack }) {
       setClassResults(data)
       setSelectedClass({ class_code: code })
       setActiveTab("overview")
+      setFilter("all")
     } catch (e) {
       console.log("Could not load class")
     }
     setLoadingResults(false)
+  }
+
+  // Derive critical students for alert banner
+  const criticalStudents = (classResults?.students || [])
+    .filter(s => getUrgency(s).level === "critical")
+
+  const tabProps = {
+    results        : classResults,
+    onSelectStudent: setSelectedStudent,
+    selectedStudent,
+    filter,
+    onFilter       : setFilter,
   }
 
   return (
@@ -785,6 +1024,56 @@ export default function TeacherDashboard({ onBack }) {
             )}
           </div>
 
+          {/* ── Critical alert banner ─────────────── */}
+          {criticalStudents.length > 0 && (
+            <div style={{
+              background  : "#FADBD8",
+              border      : "1px solid #C0392B",
+              borderRadius: "10px",
+              padding     : "12px 16px",
+              marginBottom: "16px",
+              display     : "flex",
+              alignItems  : "center",
+              gap         : "12px",
+            }}>
+              <span style={{ fontSize: "22px", flexShrink: 0 }}>🔴</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  fontWeight: "bold", fontSize: "14px",
+                  color: "#C0392B", fontFamily: "Arial", marginBottom: "2px",
+                }}>
+                  {criticalStudents.length} student
+                  {criticalStudents.length > 1 ? "s" : ""}{" "}
+                  need{criticalStudents.length === 1 ? "s" : ""} your help
+                </p>
+                <p style={{
+                  fontSize: "12px", color: "#C0392B", fontFamily: "Arial",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {criticalStudents.map(s => s.student_name).join(", ")}
+                </p>
+              </div>
+              <button
+                onClick={() => setFilter("critical")}
+                style={{
+                  background  : "#C0392B",
+                  color       : "white",
+                  border      : "none",
+                  borderRadius: "6px",
+                  padding     : "8px 14px",
+                  cursor      : "pointer",
+                  fontFamily  : "Arial",
+                  fontSize    : "12px",
+                  fontWeight  : "bold",
+                  whiteSpace  : "nowrap",
+                  flexShrink  : 0,
+                }}
+              >
+                View These Students
+              </button>
+            </div>
+          )}
+
           {/* Tabs */}
           <div style={{
             display: "flex", borderBottom: "2px solid #F2F3F4",
@@ -812,12 +1101,12 @@ export default function TeacherDashboard({ onBack }) {
           {/* Content + optional student panel side-by-side */}
           <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              {activeTab === "overview"        && <OverviewTab        results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
-              {activeTab === "live"            && <LiveTab            results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
-              {activeTab === "exit_ticket"     && <ExitTicketTab      results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
-              {activeTab === "mastery"         && <MasteryTab         results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
-              {activeTab === "recommendations" && <RecommendationsTab results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
-              {activeTab === "final_report"    && <FinalReportTab     results={classResults} onSelectStudent={setSelectedStudent} selectedStudent={selectedStudent} />}
+              {activeTab === "overview"        && <OverviewTab        {...tabProps} />}
+              {activeTab === "live"            && <LiveTab            {...tabProps} />}
+              {activeTab === "exit_ticket"     && <ExitTicketTab      {...tabProps} />}
+              {activeTab === "mastery"         && <MasteryTab         {...tabProps} />}
+              {activeTab === "recommendations" && <RecommendationsTab {...tabProps} />}
+              {activeTab === "final_report"    && <FinalReportTab     {...tabProps} />}
             </div>
 
             {selectedStudent && (
