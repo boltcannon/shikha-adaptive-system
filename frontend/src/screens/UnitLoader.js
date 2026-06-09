@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
-export default function UnitLoader({ onNavigate }) {
+export default function UnitLoader({ onNavigate, onClassCode }) {
   const { sessionId, unitInput, setGeneratedContent } = useUnit()
 
   const [timedOut, setTimedOut] = useState(false)
@@ -26,6 +26,16 @@ export default function UnitLoader({ onNavigate }) {
 
       if (result.source) {
         if (result.content) setGeneratedContent(result.content)
+        // Fetch the auto-created class code so the nav bar can show the Copy Link button
+        try {
+          const classData = await api.createClass(sessionId)
+          if (classData.class_code) {
+            localStorage.setItem("autoClassCode", classData.class_code)
+            if (onClassCode) onClassCode(classData.class_code)
+          }
+        } catch (e) {
+          console.log("Could not fetch class code:", e)
+        }
         setTimeout(() => onNavigate("provocation"), 1000)
       } else {
         setError("Generation failed. Please try again.")

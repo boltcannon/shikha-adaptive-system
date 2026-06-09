@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { Routes, Route, useParams, useMatch } from "react-router-dom"
+import { Routes, Route, useParams } from "react-router-dom"
 import { UnitProvider, useUnit } from "./context/UnitContext"
 import AuthScreen from "./screens/AuthScreen"
 import SimpleLoader from "./components/SimpleLoader"
@@ -7,7 +7,6 @@ import UnitProgress from "./components/UnitProgress"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
 import StudentJoin from "./screens/StudentJoin"
-import TeacherSharePanel from "./screens/TeacherSharePanel"
 import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
 import NclReview from "./templates/NclReview"
@@ -51,9 +50,10 @@ function AppContent() {
     currentUser, authLoading, logout,
   } = useUnit()
 
-  const [screen,         setScreen]         = useState("auth")
-  const [mode,           setMode]           = useState("student")
-  const [showSharePanel, setShowSharePanel] = useState(false)
+  const [screen,        setScreen]        = useState("auth")
+  const [mode,          setMode]          = useState("student")
+  const [autoClassCode, setAutoClassCode] = useState(localStorage.getItem("autoClassCode") || null)
+  const [copied,        setCopied]        = useState(false)
 
   // Scroll to top on every screen transition
   useEffect(() => {
@@ -67,9 +67,6 @@ function AppContent() {
     }
   }, [authLoading, currentUser]) // eslint-disable-line
 
-  // Hide "Share with Class" on /join/:classCode URLs
-  const isJoinRoute = useMatch("/join/:classCode")
-
   const navigateTo = (s) => {
     if (s === "teacherDashboard") { setMode("teacher"); return }
     setScreen(s)
@@ -82,8 +79,23 @@ function AppContent() {
     setGeneratedContent(null)
     setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
     clearStudentSession()
+    localStorage.removeItem("autoClassCode")
+    setAutoClassCode(null)
     setScreen("teacherInput")
     setMode("student")
+  }
+
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/join/${autoClassCode}`
+    navigator.clipboard.writeText(link)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(() => {
+        // Fallback for browsers without clipboard API
+        window.prompt("Copy this link to share with students:", link)
+      })
   }
 
   const renderScreen = () => {
@@ -107,7 +119,7 @@ function AppContent() {
     switch (screen) {
       case "auth":            return <AuthScreen onNavigate={navigateTo} />
       case "teacherInput":    return <TeacherInput onNavigate={navigateTo} />
-      case "unitLoader":      return <UnitLoader onNavigate={navigateTo} />
+      case "unitLoader":      return <UnitLoader onNavigate={navigateTo} onClassCode={setAutoClassCode} />
       case "provocation":     return <Provocation onNavigate={navigateTo} />
       case "ncl":             return <NCL onNavigate={navigateTo} />
       case "ncl_review":      return <NclReview onNavigate={navigateTo} />
@@ -144,7 +156,7 @@ function AppContent() {
         {/* Right-side controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 
-          {/* Student name in guest mode (not logged in) */}
+          {/* Student name in guest mode */}
           {mode === "student" && studentName && !currentUser && (
             <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
               {studentName}
@@ -158,7 +170,12 @@ function AppContent() {
                 {currentUser.name}
               </span>
               <button
-                onClick={() => { logout(); navigateTo("auth") }}
+                onClick={() => {
+                  localStorage.removeItem("autoClassCode")
+                  setAutoClassCode(null)
+                  logout()
+                  navigateTo("auth")
+                }}
                 style={{
                   background  : "rgba(255,255,255,0.15)",
                   color       : "white",
@@ -173,6 +190,26 @@ function AppContent() {
                 Sign Out
               </button>
             </div>
+          )}
+
+          {/* Copy Student Link (teacher + session + class code ready) */}
+          {mode === "teacher" && sessionId && autoClassCode && (
+            <button
+              onClick={handleCopyLink}
+              style={{
+                background  : copied ? "#1E8449" : "#E87722",
+                color       : "white",
+                border      : "none",
+                borderRadius: "6px",
+                padding     : "6px 14px",
+                cursor      : "pointer",
+                fontFamily  : "Arial",
+                fontSize    : "13px",
+                transition  : "background 0.3s",
+              }}
+            >
+              {copied ? "✓ Copied!" : "🔗 Copy Student Link"}
+            </button>
           )}
 
           {/* Assessment Builder (teacher mode + session exists) */}
@@ -213,20 +250,6 @@ function AppContent() {
             </button>
           )}
 
-          {/* Share with Class — hidden on student join route */}
-          {mode === "student" && !isJoinRoute && (
-            <button
-              onClick={() => setShowSharePanel(true)}
-              style={{
-                background: "#E87722", color: "white", border: "none",
-                borderRadius: "6px", padding: "6px 14px",
-                cursor: "pointer", fontFamily: "Arial", fontSize: "13px",
-              }}
-            >
-              Share with Class
-            </button>
-          )}
-
           {/* Teacher / Student view toggle */}
           <button
             onClick={() => setMode(mode === "student" ? "teacher" : "student")}
@@ -257,18 +280,6 @@ function AppContent() {
           <Route path="*" element={renderScreen()} />
         </Routes>
       </div>
-
-      {/* ── Teacher share panel overlay ───────────────────── */}
-      {showSharePanel && (
-        <TeacherSharePanel
-          onClose={() => setShowSharePanel(false)}
-          onStartStudentView={() => {
-            setShowSharePanel(false)
-            setMode("student")
-            navigateTo("provocation")
-          }}
-        />
-      )}
 
       {/* ── Developer panel (dev only) ────────────────────── */}
       <DevPanel onNavigate={navigateTo} onModeChange={setMode} />

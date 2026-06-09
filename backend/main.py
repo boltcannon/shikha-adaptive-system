@@ -403,6 +403,24 @@ async def generate_all_templates(session_id: str):
                 pass
             session["generated_content"] = content
             save_session_to_db(session_id, session)
+            # Auto-create class code so teacher can share the join link immediately
+            try:
+                if not classes_collection.find_one({"session_id": session_id}):
+                    _code = generate_class_code()
+                    while classes_collection.find_one({"class_code": _code}):
+                        _code = generate_class_code()
+                    classes_collection.insert_one({
+                        "session_id"       : session_id,
+                        "class_code"       : _code,
+                        "unit_input"       : _unit_input_dict(session["unit_input"]),
+                        "generated_content": content,
+                        "created_at"       : datetime.datetime.utcnow(),
+                        "students"         : [],
+                        "status"           : "active",
+                    })
+                    print(f"Auto-created class: {_code}")
+            except Exception as _e:
+                print(f"[WARN] Could not auto-create class: {_e}")
             return {
                 "source": "cache",
                 "message": "Loaded from cache instantly",
@@ -486,6 +504,24 @@ async def generate_all_templates(session_id: str):
 
     session["generated_content"] = content
     save_session_to_db(session_id, session)
+    # Auto-create class code so teacher can share the join link immediately
+    try:
+        if not classes_collection.find_one({"session_id": session_id}):
+            _code = generate_class_code()
+            while classes_collection.find_one({"class_code": _code}):
+                _code = generate_class_code()
+            classes_collection.insert_one({
+                "session_id"       : session_id,
+                "class_code"       : _code,
+                "unit_input"       : _unit_input_dict(session["unit_input"]),
+                "generated_content": content,
+                "created_at"       : datetime.datetime.utcnow(),
+                "students"         : [],
+                "status"           : "active",
+            })
+            print(f"Auto-created class: {_code}")
+    except Exception as _e:
+        print(f"[WARN] Could not auto-create class: {_e}")
     return {
         "source":  "generated",
         "message": "Unit generated and cached",
