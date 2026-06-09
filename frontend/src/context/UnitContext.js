@@ -9,10 +9,11 @@ export function UnitProvider({ children }) {
   const [unitInput,        setUnitInput]        = useState(null)
   const [generatedContent, setGeneratedContent] = useState(null)
 
-  // Persist sessionId so teachers can resume after refresh
+  // Persist sessionId to localStorage whenever it is set.
+  // Intentionally does NOT remove when null — explicit removal happens
+  // in clearStudentSession / handleNewUnit so resume data survives logout.
   useEffect(() => {
     if (sessionId) localStorage.setItem("sessionId", sessionId)
-    else           localStorage.removeItem("sessionId")
   }, [sessionId])
 
   // ── Teacher performance tracking (solo / preview) ─────────
@@ -58,18 +59,22 @@ export function UnitProvider({ children }) {
     }
   })
 
-  // Sync student identity to localStorage
+  // Sync student identity to localStorage (set-only — removal is explicit)
   useEffect(() => { if (studentId)   localStorage.setItem("studentId",   studentId)   }, [studentId])
   useEffect(() => { if (studentName) localStorage.setItem("studentName", studentName) }, [studentName])
   useEffect(() => { if (classCode)   localStorage.setItem("classCode",   classCode)   }, [classCode])
 
-  const saveStudentProgress = (updates) => {
+  // Save progress + ensure resume keys are always written
+  const saveStudentProgress = async (updates) => {
     const newProgress = { ...studentProgress, ...updates }
     setStudentProgress(newProgress)
     localStorage.setItem("studentProgress", JSON.stringify(newProgress))
 
-    // Keep performance state in sync so adaptive routing in App.js has
-    // fresh values when the student navigates after completing a template
+    // Always pin resume keys so they survive a logout → re-login cycle
+    if (sessionId)  localStorage.setItem("sessionId",  sessionId)
+    if (studentId)  localStorage.setItem("studentId",  studentId)
+
+    // Keep performance state in sync for adaptive routing
     if (updates.exit_ticket_score !== undefined) {
       updatePerformance("exitTicketScore", updates.exit_ticket_score)
     }
@@ -78,7 +83,7 @@ export function UnitProvider({ children }) {
     }
 
     if (studentId) {
-      api.saveProgress(studentId, newProgress).catch(() => {})
+      try { await api.saveProgress(studentId, newProgress) } catch { /* best-effort */ }
     }
   }
 
@@ -109,10 +114,30 @@ export function UnitProvider({ children }) {
     catch { return null }
   })
   const [authLoading,  setAuthLoading]  = useState(true)
-  // Screen to navigate to after auth verification (used for returning users)
+  // Screen to navigate to after auth (page-refresh AND same-tab login paths)
   const [resumeScreen, setResumeScreen] = useState(null)
 
-  // Verify token on app load — restores session for both teachers and students
+  // ── Helper: restore a student session from saved data ────
+  // Called by both verifyToken (page-refresh) and login() (same-tab)
+  const _restoreStudentSession = async (savedStudentId, savedSessionId, savedProgressStr, userName) => {
+    try {
+      const savedProgress = JSON.parse(savedProgressStr)
+      setStudentId(savedStudentId)
+      if (userName) setStudentName(userName)
+      setSessionId(savedSessionId)
+
+      // Reload generated content from backend cache so templates have data
+      const contentResult = await api.generateAll(savedSessionId)
+      if (contentResult?.content) setGeneratedContent(contentResult.content)
+
+      const target = savedProgress.current_screen
+      setResumeScreen(target && target !== "teacherInput" ? target : "provocation")
+    } catch {
+      setResumeScreen("teacherInput")
+    }
+  }
+
+  // ── Verify token on app load (page-refresh path) ─────────
   useEffect(() => {
     const verifyToken = async () => {
       const savedToken = localStorage.getItem("token")
@@ -127,31 +152,42 @@ export function UnitProvider({ children }) {
               if (savedSession) setSessionId(savedSession)
               setResumeScreen("teacherInput")
             } else {
-              // Restore student identity
-              const savedStudentId = localStorage.getItem("studentId")
-              if (savedStudentId) {
-                setStudentId(savedStudentId)
-                setStudentName(user.name)
-                try {
-                  const serverProgress = await api.getStudentProgress(savedStudentId)
-                  if (serverProgress.progress) setStudentProgress(serverProgress.progress)
-                } catch (e) {
-                  console.log("Could not restore student progress from server")
-                }
-              }
-              // Resume the student where they left off
+              // Student: restore from MongoDB (authoritative source)
+              const savedStudentId  = localStorage.getItem("studentId")
               const savedSessionId  = localStorage.getItem("sessionId")
               const savedProgressStr = localStorage.getItem("studentProgress")
-              if (savedSessionId && savedProgressStr) {
+
+              if (savedStudentId && savedSessionId) {
                 try {
-                  const savedProgress = JSON.parse(savedProgressStr)
-                  setSessionId(savedSessionId)
-                  // Reload generated content from cache so templates have data
-                  const contentResult = await api.generateAll(savedSessionId)
-                  if (contentResult.content) setGeneratedContent(contentResult.content)
-                  setResumeScreen(savedProgress.current_screen || "teacherInput")
+                  // Prefer server-side progress (most up-to-date)
+                  const progressData = await api.getStudentProgress(savedStudentId)
+                  if (progressData.progress) {
+                    const progress = progressData.progress
+                    setStudentProgress(progress)
+                    // Persist the server copy locally
+                    localStorage.setItem("studentProgress", JSON.stringify(progress))
+                    await _restoreStudentSession(
+                      savedStudentId, savedSessionId,
+                      JSON.stringify(progress), user.name
+                    )
+                  } else if (savedProgressStr) {
+                    // Fall back to local copy
+                    await _restoreStudentSession(
+                      savedStudentId, savedSessionId,
+                      savedProgressStr, user.name
+                    )
+                  } else {
+                    setResumeScreen("teacherInput")
+                  }
                 } catch {
-                  setResumeScreen("teacherInput")
+                  if (savedProgressStr) {
+                    await _restoreStudentSession(
+                      savedStudentId, savedSessionId,
+                      savedProgressStr, user.name
+                    )
+                  } else {
+                    setResumeScreen("teacherInput")
+                  }
                 }
               } else {
                 setResumeScreen("teacherInput")
@@ -174,16 +210,39 @@ export function UnitProvider({ children }) {
     verifyToken()
   }, []) // eslint-disable-line
 
+  // ── Login (same-tab path) ─────────────────────────────────
   const login = (userData, userToken) => {
     setCurrentUser(userData)
     setToken(userToken)
     localStorage.setItem("token",       userToken)
     localStorage.setItem("currentUser", JSON.stringify(userData))
+
+    // For returning students: restore their previous session immediately
+    // (without waiting for a page refresh — verifyToken won't re-run)
+    if (userData.role === "student") {
+      const savedStudentId  = localStorage.getItem("studentId")
+      const savedSessionId  = localStorage.getItem("sessionId")
+      const savedProgressStr = localStorage.getItem("studentProgress")
+
+      if (savedStudentId && savedSessionId && savedProgressStr) {
+        // Run async restore without awaiting — resumeScreen will be set
+        // and App.js effect will navigate once it fires
+        _restoreStudentSession(
+          savedStudentId, savedSessionId,
+          savedProgressStr, userData.name
+        )
+        // _restoreStudentSession sets resumeScreen when done
+      }
+      // If no saved session: App.js will go to teacherInput (from onNavigate call in AuthScreen)
+    }
   }
 
   const logout = () => {
     setCurrentUser(null)
     setToken(null)
+    // Reset session-dependent React state — but do NOT wipe localStorage
+    // resume keys (studentId, sessionId, studentProgress) so the student
+    // can pick up exactly where they left off after signing back in.
     setSessionId(null)
     setUnitInput(null)
     setGeneratedContent(null)
@@ -198,10 +257,13 @@ export function UnitProvider({ children }) {
       project_idea        : "",
       reflection_done     : false,
     })
-    localStorage.clear()
+    // Clear auth tokens only — student resume data intentionally left in localStorage
+    localStorage.removeItem("token")
+    localStorage.removeItem("currentUser")
+    localStorage.removeItem("autoClassCode")
   }
 
-  /** Clear all student state (called when teacher starts a new unit) */
+  /** Clear all student state (called when starting a fresh unit) */
   const clearStudentSession = () => {
     setStudentId(null)
     setStudentName(null)
@@ -212,11 +274,13 @@ export function UnitProvider({ children }) {
       exit_ticket_score: null, mastery_gate_result: null,
       project_idea: "", reflection_done: false,
     })
+    // Explicit removal of all resume keys when starting fresh
     localStorage.removeItem("studentId")
     localStorage.removeItem("studentName")
     localStorage.removeItem("classCode")
     localStorage.removeItem("studentProgress")
     localStorage.removeItem("nclProgress")
+    localStorage.removeItem("sessionId")
   }
 
   return (
