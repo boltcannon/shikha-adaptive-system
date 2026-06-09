@@ -13,8 +13,9 @@ const SCREENS = [
   { key: "projectPlanning",  label: "Project Planning",     phase: "transfer"   },
   { key: "rac",              label: "Research & Creation",  phase: "transfer"   },
   { key: "reflection",       label: "Reflection",           phase: "transfer"   },
-  { key: "teacherDashboard", label: "Teacher Dashboard",    phase: "teacher"    },
-  { key: "studentJoin",      label: "Student Join",         phase: "student"    },
+  { key: "teacherDashboard",  label: "Teacher Dashboard",    phase: "teacher"    },
+  { key: "assessmentBuilder", label: "Assessment Builder",   phase: "teacher"    },
+  { key: "studentJoin",       label: "Student Join",         phase: "student"    },
 ]
 
 const PHASE_COLORS = {
@@ -95,13 +96,12 @@ function DevPanelInner({ onNavigate, onModeChange }) {
 
   // ── Navigate to a screen ──────────────────────────────
   const jumpTo = (screen) => {
-    if (screen === "teacherDashboard") {
+    if (screen === "teacherDashboard" || screen === "assessmentBuilder") {
       onModeChange("teacher")
-      onNavigate("teacherDashboard")
     } else {
       onModeChange("student")
-      onNavigate(screen)
     }
+    onNavigate(screen)
     setOpen(false)
   }
 

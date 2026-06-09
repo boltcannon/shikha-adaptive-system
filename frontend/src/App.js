@@ -19,6 +19,7 @@ import ProjectPlanning from "./templates/ProjectPlanning"
 import RAC from "./templates/RAC"
 import Reflection from "./templates/Reflection"
 import TeacherDashboard from "./screens/TeacherDashboard"
+import AssessmentBuilder from "./screens/AssessmentBuilder"
 import DevPanel from "./components/DevPanel"
 import "./App.css"
 
@@ -90,6 +91,13 @@ function AppContent() {
 
     if (!currentUser && screen !== "auth" && screen !== "studentJoin") {
       return <AuthScreen onNavigate={navigateTo} />
+    }
+
+    // Assessment Builder is accessible from teacher mode — check before mode guard
+    if (screen === "assessmentBuilder") {
+      return (
+        <AssessmentBuilder onBack={() => navigateTo("teacherDashboard")} />
+      )
     }
 
     if (mode === "teacher") {
@@ -165,6 +173,25 @@ function AppContent() {
                 Sign Out
               </button>
             </div>
+          )}
+
+          {/* Assessment Builder (teacher mode + session exists) */}
+          {mode === "teacher" && sessionId && (
+            <button
+              onClick={() => setScreen("assessmentBuilder")}
+              style={{
+                background  : "rgba(255,255,255,0.15)",
+                color       : "white",
+                border      : "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "6px",
+                padding     : "6px 14px",
+                cursor      : "pointer",
+                fontFamily  : "Arial",
+                fontSize    : "13px",
+              }}
+            >
+              📝 Assessment
+            </button>
           )}
 
           {/* New Unit (teacher mode + session exists) */}

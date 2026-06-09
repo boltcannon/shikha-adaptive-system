@@ -76,6 +76,15 @@ export const api = {
     return r.json()
   },
 
+  // Alias used by Assessment Builder — same endpoint, semantic name
+  getMasteryQuestions: async (sessionId) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/mastery-all/${sessionId}`,
+      { method: "POST" }
+    )
+    return r.json()
+  },
+
   generateMasteryQuestion: async (sessionId, subtopic, dimension, level) => {
     const r = await fetch(
       `${BASE_URL}/generate/mastery-question/${sessionId}` +
