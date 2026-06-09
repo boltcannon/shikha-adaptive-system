@@ -1136,43 +1136,79 @@ async def get_student_progress(student_id: str):
 
 @app.get("/class/{class_code}/results")
 async def get_class_results(class_code: str):
-    """Teacher fetches all student progress for a class, with summary stats."""
-    students = list(students_collection.find(
-        {"class_code": class_code.upper()}, {"_id": 0}
-    ))
-    total = len(students)
-    complete = sum(
-        1 for s in students
-        if s.get("progress", {}).get("reflection_done")
-    )
-    in_progress = sum(
-        1 for s in students
-        if len(s.get("progress", {}).get("completed_templates", [])) > 0
-        and not s.get("progress", {}).get("reflection_done")
-    )
+    """Teacher fetches all student progress for a class, with rich summary stats."""
+    try:
+        students = list(students_collection.find(
+            {"class_code": class_code.upper()},
+            {"_id": 0}
+        ))
+    except Exception:
+        students = []
+
+    total       = len(students)
+    complete    = sum(1 for s in students
+                      if s.get("progress", {}).get("reflection_done"))
+    in_progress = sum(1 for s in students
+                      if len(s.get("progress", {}).get("completed_templates", [])) > 0
+                      and not s.get("progress", {}).get("reflection_done"))
     not_started = total - complete - in_progress
 
-    # Calculate class average exit ticket score (as a percentage 0-100)
-    exit_scores = []
+    # Parse "X/Y" exit_ticket_score strings to integers for frontend comparisons
+    def _parse_exit(val):
+        if val is None:
+            return None
+        try:
+            if isinstance(val, (int, float)):
+                return int(val)
+            parts = str(val).split("/")
+            return int(parts[0]) if len(parts) >= 1 else None
+        except (ValueError, TypeError):
+            return None
+
+    # Build normalised student list (exit_ticket_score as int, rest unchanged)
+    processed_students = []
+    raw_scores = []
     for s in students:
-        score_str = s.get("progress", {}).get("exit_ticket_score")
-        if score_str:
-            try:
-                parts = str(score_str).split("/")
-                if len(parts) == 2:
-                    exit_scores.append(int(parts[0]) / int(parts[1]))
-            except (ValueError, ZeroDivisionError):
-                pass
-    avg_exit_score = round(sum(exit_scores) / len(exit_scores) * 100) if exit_scores else None
+        student_data = dict(s)
+        p = dict(student_data.get("progress", {}))
+        numeric = _parse_exit(p.get("exit_ticket_score"))
+        if numeric is not None:
+            p["exit_ticket_score"] = numeric
+            raw_scores.append(numeric)
+        student_data["progress"] = p
+        processed_students.append(student_data)
+
+    avg_score = round(sum(raw_scores) / len(raw_scores), 1) if raw_scores else None
+
+    score_distribution = {
+        "green": sum(1 for sc in raw_scores if sc >= 4),
+        "amber": sum(1 for sc in raw_scores if 2 <= sc < 4),
+        "red"  : sum(1 for sc in raw_scores if sc < 2),
+    }
+
+    # Template completion counts across the class
+    templates = [
+        "provocation", "ncl", "analysis", "discussion",
+        "masteryGate", "projectPlanning", "rac", "reflection",
+    ]
+    template_counts = {
+        t: sum(
+            1 for s in students
+            if t in s.get("progress", {}).get("completed_templates", [])
+        )
+        for t in templates
+    }
 
     return {
-        "class_code"    : class_code.upper(),
-        "total_students": total,
-        "complete"      : complete,
-        "in_progress"   : in_progress,
-        "not_started"   : not_started,
-        "avg_exit_score": avg_exit_score,
-        "students"      : students,
+        "class_code"        : class_code.upper(),
+        "total_students"    : total,
+        "complete"          : complete,
+        "in_progress"       : in_progress,
+        "not_started"       : not_started,
+        "avg_exit_score"    : avg_score,
+        "score_distribution": score_distribution,
+        "template_counts"   : template_counts,
+        "students"          : processed_students,
     }
 
 
