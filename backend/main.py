@@ -18,6 +18,7 @@ from framework.mat_engine import (
     check_answer,
     check_open_ended_response,
     generate_analysis,
+    generate_context_suggestions,
     generate_discussion,
     generate_mastery_question,
     generate_ncl,
@@ -883,6 +884,31 @@ async def get_reflection(
     save_session_to_db(session_id, session)
 
     return result
+
+
+_DEFAULT_CONTEXTS = [
+    "Cricket", "Cooking", "Space", "Music",
+    "Travel", "Nature", "Sports", "Technology",
+]
+
+
+@app.post("/generate/context-suggestions")
+async def get_context_suggestions(data: dict = Body(default={})):
+    grade   = data.get("grade", "")
+    subject = data.get("subject", "")
+    chapter = data.get("chapter", "")
+
+    if not chapter:
+        return {"contexts": _DEFAULT_CONTEXTS}
+
+    try:
+        result = await generate_context_suggestions(grade, subject, chapter)
+        if result.get("contexts") and len(result["contexts"]) > 0:
+            return result
+        return {"contexts": _DEFAULT_CONTEXTS}
+    except Exception as e:
+        print(f"Context suggestion error: {e}")
+        return {"contexts": _DEFAULT_CONTEXTS}
 
 
 # ──────────────────────────────────────────────────────────

@@ -570,6 +570,43 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+CONTEXT_SUGGESTIONS_PROMPT = """
+You are a curriculum expert for Indian school education.
+
+Grade: {grade}
+Subject: {subject}
+Chapter: {chapter}
+
+Suggest 8 real-world contexts that would make
+this chapter engaging and relevant for students.
+
+Rules:
+- Each context should be something students
+  genuinely encounter in daily life in India
+- Contexts should connect naturally to the
+  chapter's core concepts
+- Mix fun contexts (sports, games, food) with
+  practical ones (money, health, nature)
+- Keep each context to 1-3 words maximum
+- No generic contexts like "daily life" or
+  "real world" -- be specific
+- First 3 should be the most relevant/engaging
+
+Return ONLY valid JSON, no other text:
+{{
+  "contexts": [
+    "string",
+    "string",
+    "string",
+    "string",
+    "string",
+    "string",
+    "string",
+    "string"
+  ]
+}}
+"""
+
 REFLECTION_PROMPT = """
 {system_base}
 

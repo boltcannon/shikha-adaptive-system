@@ -9,29 +9,50 @@ const GRADES = [
   "Class 9", "Class 10", "Class 11", "Class 12"
 ]
 
-const CONTEXT_SUGGESTIONS = [
-  "Cricket", "Football", "Cooking", "Space", "Farming",
-  "Movies", "Music", "Fashion", "Technology", "Travel"
+const DEFAULT_CONTEXTS = [
+  "Cricket", "Football", "Cooking", "Space",
+  "Farming", "Movies", "Music", "Technology"
 ]
 
 export default function TeacherInput({ onNavigate }) {
-  const { sessionId, setSessionId, setUnitInput, setGeneratedContent, setPerformance, clearStudentSession } = useUnit()
+  const {
+    sessionId, setSessionId, setUnitInput,
+    setGeneratedContent, setPerformance, clearStudentSession,
+  } = useUnit()
+
   const [form, setForm] = useState({
-    grade: "Class 6",
-    subject: "",
-    chapter: "",
-    context: ""
+    grade: "Class 6", subject: "", chapter: "", context: "",
   })
   const [noContext, setNoContext] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  // Derive available subjects and chapters from the selected grade/subject
+  // Dynamic context suggestions
+  const [contextSuggestions, setContextSuggestions] = useState(DEFAULT_CONTEXTS)
+  const [loadingContexts, setLoadingContexts] = useState(false)
+
   const availableSubjects = CHAPTERS[form.grade]
     ? Object.keys(CHAPTERS[form.grade])
     : []
-
   const availableChapters = CHAPTERS[form.grade]?.[form.subject] || []
+
+  // ── Fetch context suggestions when chapter is selected ──
+  const fetchContextSuggestions = async (grade, subject, chapter) => {
+    if (!chapter) return
+    setLoadingContexts(true)
+    try {
+      const result = await api.getContextSuggestions(grade, subject, chapter)
+      if (result.contexts && result.contexts.length > 0) {
+        setContextSuggestions(result.contexts)
+        // Clear any previously selected context so the teacher
+        // consciously picks from the chapter-specific suggestions
+        setForm(prev => ({ ...prev, context: "" }))
+      }
+    } catch (e) {
+      console.log("Could not load context suggestions")
+    }
+    setLoadingContexts(false)
+  }
 
   const handleNoContextToggle = (checked) => {
     setNoContext(checked)
@@ -39,7 +60,7 @@ export default function TeacherInput({ onNavigate }) {
   }
 
   const handleGenerate = async () => {
-    if (!form.chapter || form.chapter === "") {
+    if (!form.chapter) {
       setError("Please select a chapter")
       return
     }
@@ -57,21 +78,14 @@ export default function TeacherInput({ onNavigate }) {
   }
 
   const selectStyle = {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #BDC3C7",
-    fontFamily: "Arial",
-    fontSize: "14px",
-    appearance: "auto"
+    width: "100%", padding: "10px", borderRadius: "8px",
+    border: "1px solid #BDC3C7", fontFamily: "Arial",
+    fontSize: "14px", appearance: "auto",
   }
 
   const labelStyle = {
-    display: "block",
-    marginBottom: "6px",
-    fontWeight: "bold",
-    fontSize: "13px",
-    color: "#1A5276"
+    display: "block", marginBottom: "6px",
+    fontWeight: "bold", fontSize: "13px", color: "#1A5276",
   }
 
   return (
@@ -94,14 +108,12 @@ export default function TeacherInput({ onNavigate }) {
             onChange={e => setForm({
               ...form,
               grade: e.target.value,
-              subject: "",   // reset subject when grade changes
-              chapter: ""    // reset chapter when grade changes
+              subject: "",
+              chapter: "",
             })}
             style={selectStyle}
           >
-            {GRADES.map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
+            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
         </div>
 
@@ -110,21 +122,19 @@ export default function TeacherInput({ onNavigate }) {
           <label style={labelStyle}>Subject</label>
           <select
             value={form.subject}
-            onChange={e => setForm({
-              ...form,
-              subject: e.target.value,
-              chapter: ""    // reset chapter when subject changes
-            })}
+            onChange={e => {
+              setForm({ ...form, subject: e.target.value, chapter: "" })
+              // Reset suggestions to defaults when subject changes
+              setContextSuggestions(DEFAULT_CONTEXTS)
+            }}
             style={{
               ...selectStyle,
               background: availableSubjects.length === 0 ? "#F2F3F4" : "white",
-              color: form.subject ? "#2C3E50" : "#95A5A6"
+              color: form.subject ? "#2C3E50" : "#95A5A6",
             }}
           >
             <option value="">Select a subject...</option>
-            {availableSubjects.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+            {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {availableSubjects.length === 0 && (
             <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#95A5A6", marginTop: "4px" }}>
@@ -145,7 +155,15 @@ export default function TeacherInput({ onNavigate }) {
           </label>
           <select
             value={form.chapter}
-            onChange={e => setForm({ ...form, chapter: e.target.value })}
+            onChange={e => {
+              const newChapter = e.target.value
+              setForm({ ...form, chapter: newChapter })
+              if (newChapter && form.grade && form.subject) {
+                fetchContextSuggestions(form.grade, form.subject, newChapter)
+              } else {
+                setContextSuggestions(DEFAULT_CONTEXTS)
+              }
+            }}
             disabled={!form.subject || availableChapters.length === 0}
             style={{
               ...selectStyle,
@@ -153,80 +171,100 @@ export default function TeacherInput({ onNavigate }) {
                 ? "#F2F3F4" : "white",
               color: form.chapter ? "#2C3E50" : "#95A5A6",
               cursor: (!form.subject || availableChapters.length === 0)
-                ? "not-allowed" : "pointer"
+                ? "not-allowed" : "pointer",
             }}
           >
             <option value="">
-              {!form.subject
-                ? "Select a subject first..."
-                : "Select a chapter..."}
+              {!form.subject ? "Select a subject first..." : "Select a chapter..."}
             </option>
-            {availableChapters.map(ch => (
-              <option key={ch} value={ch}>{ch}</option>
-            ))}
+            {availableChapters.map(ch => <option key={ch} value={ch}>{ch}</option>)}
           </select>
         </div>
 
         {/* ── Context ───────────────────────────────────────── */}
         <div style={{ marginBottom: "24px" }}>
-          <label style={labelStyle}>
-            Context
-            <span style={{ fontWeight: "normal", color: "#95A5A6", marginLeft: "6px" }}>
-              (optional)
-            </span>
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. Cricket, Cooking, Space... (optional)"
-            value={noContext ? "" : form.context}
-            disabled={noContext}
-            onChange={e => setForm({ ...form, context: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #BDC3C7",
-              fontFamily: "Arial",
-              fontSize: "14px",
-              marginBottom: "8px",
-              background: noContext ? "#F2F3F4" : "white",
-              color: noContext ? "#95A5A6" : "#2C3E50",
-              cursor: noContext ? "not-allowed" : "text"
-            }}
-          />
+          {/* Header row: label + loading indicator */}
+          <div style={{
+            display: "flex", justifyContent: "space-between",
+            alignItems: "center", marginBottom: "8px",
+          }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>
+              Context
+              <span style={{ fontWeight: "normal", color: "#95A5A6", marginLeft: "6px" }}>
+                (optional)
+              </span>
+            </label>
+            {loadingContexts && (
+              <span style={{
+                fontSize: "11px", color: "#E87722",
+                fontFamily: "Arial", fontStyle: "italic",
+              }}>
+                Updating suggestions...
+              </span>
+            )}
+          </div>
 
-          {/* Suggestion pills */}
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
-            {CONTEXT_SUGGESTIONS.map(c => (
+          {/* Dynamic suggestion pills */}
+          <div style={{
+            display: "flex", flexWrap: "wrap",
+            gap: "8px", marginBottom: "10px",
+          }}>
+            {contextSuggestions.map(ctx => (
               <button
-                key={c}
-                onClick={() => !noContext && setForm({ ...form, context: c })}
+                key={ctx}
+                onClick={() => {
+                  if (noContext) return
+                  setForm(prev => ({
+                    ...prev,
+                    context: prev.context === ctx ? "" : ctx,
+                  }))
+                }}
                 disabled={noContext}
                 style={{
-                  background: !noContext && form.context === c ? "#E87722" : "#F2F3F4",
-                  color: !noContext && form.context === c ? "white" : "#95A5A6",
-                  border: "none",
-                  borderRadius: "16px",
-                  padding: "4px 12px",
-                  fontSize: "12px",
+                  padding: "5px 14px",
+                  borderRadius: "20px",
+                  border: `2px solid ${
+                    !noContext && form.context === ctx ? "#E87722" : "#BDC3C7"
+                  }`,
+                  background: !noContext && form.context === ctx
+                    ? "#E87722" : "white",
+                  color: !noContext && form.context === ctx
+                    ? "white" : "#5D6D7E",
                   cursor: noContext ? "not-allowed" : "pointer",
                   fontFamily: "Arial",
-                  opacity: noContext ? 0.45 : 1,
-                  transition: "opacity 0.2s"
+                  fontSize: "13px",
+                  fontWeight: !noContext && form.context === ctx ? "bold" : "normal",
+                  opacity: noContext || loadingContexts ? 0.5 : 1,
+                  transition: "all 0.15s",
                 }}
               >
-                {c}
+                {ctx}
               </button>
             ))}
           </div>
 
+          {/* Custom context free-text input */}
+          <input
+            type="text"
+            placeholder="Or type your own context..."
+            value={noContext ? "" : form.context}
+            disabled={noContext}
+            onChange={e => setForm({ ...form, context: e.target.value })}
+            style={{
+              width: "100%", padding: "8px 12px",
+              borderRadius: "8px", border: "1px solid #BDC3C7",
+              fontFamily: "Arial", fontSize: "13px",
+              color: "#2C3E50", marginBottom: "10px",
+              background: noContext ? "#F2F3F4" : "white",
+              cursor: noContext ? "not-allowed" : "text",
+              boxSizing: "border-box",
+            }}
+          />
+
           {/* No-context checkbox */}
           <label style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-            marginBottom: "8px"
+            display: "flex", alignItems: "center",
+            gap: "8px", cursor: "pointer", marginBottom: "8px",
           }}>
             <input
               type="checkbox"
@@ -241,7 +279,7 @@ export default function TeacherInput({ onNavigate }) {
 
           <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#95A5A6", lineHeight: "1.5" }}>
             The AI will connect all learning to this context.
-            Leave blank or check 'No context' for general examples.
+            Suggestions update automatically when you select a chapter.
           </p>
         </div>
 
@@ -256,37 +294,32 @@ export default function TeacherInput({ onNavigate }) {
           onClick={handleGenerate}
           disabled={loading || !form.chapter}
           style={{
-            width: "100%",
-            padding: "14px",
-            fontSize: "15px",
+            width: "100%", padding: "14px", fontSize: "15px",
             opacity: (!form.chapter && !loading) ? 0.5 : 1,
-            cursor: !form.chapter ? "not-allowed" : "pointer"
+            cursor: !form.chapter ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Creating unit..." : "Generate Unit with AI →"}
         </button>
 
-        {/* Fix 1 — clear existing session so teacher can start fresh */}
         {sessionId && (
           <button
             onClick={() => {
               setSessionId(null)
               setUnitInput(null)
               setGeneratedContent(null)
-              setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
+              setPerformance({
+                exitTicketScore: null, masteryGateResult: null,
+                projectIdea: "", completedTemplates: [],
+              })
               clearStudentSession()
             }}
             style={{
-              width       : "100%",
-              padding     : "10px",
-              background  : "white",
-              color       : "#5D6D7E",
-              border      : "1px solid #BDC3C7",
-              borderRadius: "8px",
-              cursor      : "pointer",
-              fontFamily  : "Arial",
-              fontSize    : "13px",
-              marginTop   : "8px",
+              width: "100%", padding: "10px",
+              background: "white", color: "#5D6D7E",
+              border: "1px solid #BDC3C7", borderRadius: "8px",
+              cursor: "pointer", fontFamily: "Arial",
+              fontSize: "13px", marginTop: "8px",
             }}
           >
             Clear current unit and start fresh

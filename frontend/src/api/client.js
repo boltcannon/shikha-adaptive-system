@@ -291,6 +291,18 @@ export const api = {
     return r.json()
   },
 
+  getContextSuggestions: async (grade, subject, chapter) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/context-suggestions`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({ grade, subject, chapter }),
+      }
+    )
+    return r.json()
+  },
+
   generateReflection: async (
     sessionId,
     exitTicketScore,

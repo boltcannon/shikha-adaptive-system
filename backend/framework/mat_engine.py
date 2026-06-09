@@ -19,6 +19,7 @@ from .prompts import (
     RAC_SUGGESTIONS_PROMPT,
     RAC_TEMPLATE_PROMPT,
     RAC_SECTION_FEEDBACK_PROMPT,
+    CONTEXT_SUGGESTIONS_PROMPT,
 )
 
 # Load .env from the backend directory (two levels up from this file)
@@ -248,6 +249,15 @@ async def get_rac_section_feedback(
         student_content  = student_content,
     )
     return await asyncio.to_thread(call_claude, prompt, 400)
+
+
+async def generate_context_suggestions(grade, subject, chapter):
+    prompt = CONTEXT_SUGGESTIONS_PROMPT.format(
+        grade=grade,
+        subject=subject,
+        chapter=chapter,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 300)
 
 
 async def generate_reflection(
