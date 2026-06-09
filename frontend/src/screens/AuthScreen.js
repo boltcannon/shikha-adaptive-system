@@ -32,7 +32,7 @@ export default function AuthScreen({ onNavigate }) {
           { user_id: result.user_id, name: result.name, email: result.email, role: result.role },
           result.token
         )
-        onNavigate(result.role === "teacher" ? "teacherInput" : "studentJoin")
+        onNavigate("teacherInput")
       } else {
         setError(result.detail || "Something went wrong")
       }
@@ -199,23 +199,6 @@ export default function AuthScreen({ onNavigate }) {
         </p>
       </div>
 
-      {/* Student join note */}
-      <p style={{
-        textAlign: "center", marginTop: "16px",
-        fontSize: "12px", color: "#5D6D7E", fontFamily: "Arial",
-      }}>
-        Joining a class with a code?{" "}
-        <button
-          onClick={() => onNavigate("studentJoin")}
-          style={{
-            background: "none", border: "none",
-            color: "#E87722", cursor: "pointer",
-            fontFamily: "Arial", fontSize: "12px",
-          }}
-        >
-          Click here
-        </button>
-      </p>
     </div>
   )
 }

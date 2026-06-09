@@ -15,7 +15,6 @@ const SCREENS = [
   { key: "reflection",       label: "Reflection",           phase: "transfer"   },
   { key: "teacherDashboard",  label: "Teacher Dashboard",    phase: "teacher"    },
   { key: "assessmentBuilder", label: "Assessment Builder",   phase: "teacher"    },
-  { key: "studentJoin",       label: "Student Join",         phase: "student"    },
 ]
 
 const PHASE_COLORS = {
@@ -25,7 +24,6 @@ const PHASE_COLORS = {
   checkpoint : { bg: "#FADBD8", text: "#C0392B" },
   transfer   : { bg: "#D5F5E3", text: "#1E8449" },
   teacher    : { bg: "#E8DAEF", text: "#6C3483" },
-  student    : { bg: "#FDEBD0", text: "#A04000" },
 }
 
 const DEFAULT_UNIT = {
@@ -55,7 +53,7 @@ export default function DevPanel(props) {
 }
 
 // ── Inner component: all hooks live here ─────────────────
-function DevPanelInner({ onNavigate, onModeChange }) {
+function DevPanelInner({ onNavigate }) {
   const [open,       setOpen]       = useState(false)
   const [loading,    setLoading]    = useState(false)
   const [status,     setStatus]     = useState("")
@@ -72,8 +70,6 @@ function DevPanelInner({ onNavigate, onModeChange }) {
     setLoading(true)
     setStatus("Creating session...")
     try {
-      // Clear any stale student progress (project_idea, nclProgress, etc.)
-      // so templates always start fresh when testing via DevPanel
       clearStudentSession()
 
       const r1 = await api.createUnit(customUnit)
@@ -85,7 +81,6 @@ function DevPanelInner({ onNavigate, onModeChange }) {
       if (r2.content) setGeneratedContent(r2.content)
       setStatus(`Ready! (${r2.source ?? "done"})`)
 
-      // Mock student identity so student screens don't redirect
       setStudentId("dev-student-001")
       setStudentName("Dev Student")
     } catch (e) {
@@ -96,11 +91,6 @@ function DevPanelInner({ onNavigate, onModeChange }) {
 
   // ── Navigate to a screen ──────────────────────────────
   const jumpTo = (screen) => {
-    if (screen === "teacherDashboard" || screen === "assessmentBuilder") {
-      onModeChange("teacher")
-    } else {
-      onModeChange("student")
-    }
     onNavigate(screen)
     setOpen(false)
   }

@@ -103,12 +103,14 @@ export function UnitProvider({ children }) {
   }
 
   // ── Auth state ────────────────────────────────────────────
-  const [token,       setToken]       = useState(() => localStorage.getItem("token") || null)
-  const [currentUser, setCurrentUser] = useState(() => {
+  const [token,        setToken]        = useState(() => localStorage.getItem("token") || null)
+  const [currentUser,  setCurrentUser]  = useState(() => {
     try { return JSON.parse(localStorage.getItem("currentUser") || "null") }
     catch { return null }
   })
-  const [authLoading, setAuthLoading] = useState(true)
+  const [authLoading,  setAuthLoading]  = useState(true)
+  // Screen to navigate to after auth verification (used for returning users)
+  const [resumeScreen, setResumeScreen] = useState(null)
 
   // Verify token on app load — restores session for both teachers and students
   useEffect(() => {
@@ -123,17 +125,36 @@ export function UnitProvider({ children }) {
             if (user.role === "teacher") {
               const savedSession = localStorage.getItem("sessionId")
               if (savedSession) setSessionId(savedSession)
+              setResumeScreen("teacherInput")
             } else {
+              // Restore student identity
               const savedStudentId = localStorage.getItem("studentId")
               if (savedStudentId) {
                 setStudentId(savedStudentId)
                 setStudentName(user.name)
                 try {
-                  const progress = await api.getStudentProgress(savedStudentId)
-                  if (progress.progress) setStudentProgress(progress.progress)
+                  const serverProgress = await api.getStudentProgress(savedStudentId)
+                  if (serverProgress.progress) setStudentProgress(serverProgress.progress)
                 } catch (e) {
                   console.log("Could not restore student progress from server")
                 }
+              }
+              // Resume the student where they left off
+              const savedSessionId  = localStorage.getItem("sessionId")
+              const savedProgressStr = localStorage.getItem("studentProgress")
+              if (savedSessionId && savedProgressStr) {
+                try {
+                  const savedProgress = JSON.parse(savedProgressStr)
+                  setSessionId(savedSessionId)
+                  // Reload generated content from cache so templates have data
+                  const contentResult = await api.generateAll(savedSessionId)
+                  if (contentResult.content) setGeneratedContent(contentResult.content)
+                  setResumeScreen(savedProgress.current_screen || "teacherInput")
+                } catch {
+                  setResumeScreen("teacherInput")
+                }
+              } else {
+                setResumeScreen("teacherInput")
               }
             }
           } else {
@@ -218,6 +239,7 @@ export function UnitProvider({ children }) {
       nclProgress, updateNclProgress,
       // Auth
       token, currentUser, authLoading, login, logout,
+      resumeScreen,
     }}>
       {children}
     </UnitContext.Provider>

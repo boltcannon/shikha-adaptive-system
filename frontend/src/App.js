@@ -30,6 +30,7 @@ const TEMPLATE_SCREENS = [
   "projectPlanning", "rac", "reflection",
 ]
 
+// Handles /join/:classCode URL — renders StudentJoin with the code from URL
 function StudentJoinWrapper({ onNavigate }) {
   const { classCode } = useParams()
   return (
@@ -48,78 +49,66 @@ function AppContent() {
     setPerformance, clearStudentSession,
     studentName,
     currentUser, authLoading, logout,
+    resumeScreen,
   } = useUnit()
 
-  const [screen,        setScreen]        = useState("auth")
-  const [mode,          setMode]          = useState("student")
-  const [autoClassCode, setAutoClassCode] = useState(localStorage.getItem("autoClassCode") || null)
-  const [copied,        setCopied]        = useState(false)
+  const [screen, setScreen] = useState("auth")
 
   // Scroll to top on every screen transition
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [screen])
 
-  // Auto-redirect after token verification completes
+  // After auth verification — navigate returning users to their screen,
+  // or send fresh logins (from AuthScreen) to teacherInput as fallback
   useEffect(() => {
-    if (!authLoading && currentUser && screen === "auth") {
-      setScreen(currentUser.role === "teacher" ? "teacherInput" : "studentJoin")
+    if (!authLoading && currentUser) {
+      if (resumeScreen) {
+        setScreen(resumeScreen)
+      } else if (screen === "auth") {
+        // Fresh login handled by AuthScreen's onNavigate, but guard against
+        // landing stuck on auth if that path was skipped somehow
+        setScreen("teacherInput")
+      }
     }
-  }, [authLoading, currentUser]) // eslint-disable-line
+  }, [authLoading, currentUser, resumeScreen]) // eslint-disable-line
 
-  const navigateTo = (s) => {
-    if (s === "teacherDashboard") { setMode("teacher"); return }
-    setScreen(s)
-  }
+  const navigateTo = (s) => setScreen(s)
 
-  // Clear session and return to Teacher Input — reset ALL state
+  // Clear session and return to input — resets ALL state
   const handleNewUnit = () => {
     setSessionId(null)
     setUnitInput(null)
     setGeneratedContent(null)
     setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
     clearStudentSession()
-    localStorage.removeItem("autoClassCode")
-    setAutoClassCode(null)
     setScreen("teacherInput")
-    setMode("student")
-  }
-
-  const handleCopyLink = () => {
-    const link = `${window.location.origin}/join/${autoClassCode}`
-    navigator.clipboard.writeText(link)
-      .then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      })
-      .catch(() => {
-        // Fallback for browsers without clipboard API
-        window.prompt("Copy this link to share with students:", link)
-      })
   }
 
   const renderScreen = () => {
     if (authLoading) return <SimpleLoader />
 
-    if (!currentUser && screen !== "auth" && screen !== "studentJoin") {
+    // Unauthenticated users always see auth (except the /join route, which bypasses renderScreen)
+    if (!currentUser && screen !== "auth") {
       return <AuthScreen onNavigate={navigateTo} />
     }
 
-    // Assessment Builder is accessible from teacher mode — check before mode guard
+    // Teacher-only screens — redirect non-teachers to teacherInput
     if (screen === "assessmentBuilder") {
-      return (
-        <AssessmentBuilder onBack={() => navigateTo("teacherDashboard")} />
-      )
+      return currentUser?.role === "teacher"
+        ? <AssessmentBuilder onBack={() => navigateTo("teacherDashboard")} />
+        : <TeacherInput onNavigate={navigateTo} />
     }
-
-    if (mode === "teacher") {
-      return <TeacherDashboard onBack={() => setMode("student")} />
+    if (screen === "teacherDashboard") {
+      return currentUser?.role === "teacher"
+        ? <TeacherDashboard onBack={() => navigateTo("teacherInput")} />
+        : <TeacherInput onNavigate={navigateTo} />
     }
 
     switch (screen) {
       case "auth":            return <AuthScreen onNavigate={navigateTo} />
       case "teacherInput":    return <TeacherInput onNavigate={navigateTo} />
-      case "unitLoader":      return <UnitLoader onNavigate={navigateTo} onClassCode={setAutoClassCode} />
+      case "unitLoader":      return <UnitLoader onNavigate={navigateTo} />
       case "provocation":     return <Provocation onNavigate={navigateTo} />
       case "ncl":             return <NCL onNavigate={navigateTo} />
       case "ncl_review":      return <NclReview onNavigate={navigateTo} />
@@ -130,10 +119,11 @@ function AppContent() {
       case "projectPlanning": return <ProjectPlanning onNavigate={navigateTo} />
       case "rac":             return <RAC onNavigate={navigateTo} />
       case "reflection":      return <Reflection onNavigate={navigateTo} />
-      case "studentJoin":     return <StudentJoin onNavigate={navigateTo} initialCode="" />
       default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }
+
+  const isTeacher = currentUser?.role === "teacher"
 
   return (
     <>
@@ -145,7 +135,10 @@ function AppContent() {
       }}>
         {/* Brand */}
         <div>
-          <span style={{ color: "#E87722", fontWeight: "bold", fontSize: "12px", fontFamily: "Arial", letterSpacing: "1px" }}>
+          <span style={{
+            color: "#E87722", fontWeight: "bold",
+            fontSize: "12px", fontFamily: "Arial", letterSpacing: "1px",
+          }}>
             SHIKHA ACADEMY
           </span>
           <span style={{ color: "white", fontSize: "14px", fontFamily: "Arial", marginLeft: "12px" }}>
@@ -157,34 +150,25 @@ function AppContent() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 
           {/* Student name in guest mode */}
-          {mode === "student" && studentName && !currentUser && (
+          {studentName && !currentUser && (
             <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
               {studentName}
             </span>
           )}
 
-          {/* Auth user name + sign out */}
+          {/* Signed-in user name + sign out */}
           {currentUser && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
                 {currentUser.name}
               </span>
               <button
-                onClick={() => {
-                  localStorage.removeItem("autoClassCode")
-                  setAutoClassCode(null)
-                  logout()
-                  navigateTo("auth")
-                }}
+                onClick={() => { logout(); navigateTo("auth") }}
                 style={{
-                  background  : "rgba(255,255,255,0.15)",
-                  color       : "white",
-                  border      : "1px solid rgba(255,255,255,0.3)",
-                  borderRadius: "6px",
-                  padding     : "4px 10px",
-                  cursor      : "pointer",
-                  fontFamily  : "Arial",
-                  fontSize    : "12px",
+                  background: "rgba(255,255,255,0.15)", color: "white",
+                  border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                  padding: "4px 10px", cursor: "pointer",
+                  fontFamily: "Arial", fontSize: "12px",
                 }}
               >
                 Sign Out
@@ -192,87 +176,62 @@ function AppContent() {
             </div>
           )}
 
-          {/* Copy Student Link (teacher + session + class code ready) */}
-          {mode === "teacher" && sessionId && autoClassCode && (
+          {/* Assessment Builder — teachers only */}
+          {isTeacher && sessionId && (
             <button
-              onClick={handleCopyLink}
+              onClick={() => navigateTo("assessmentBuilder")}
               style={{
-                background  : copied ? "#1E8449" : "#E87722",
-                color       : "white",
-                border      : "none",
-                borderRadius: "6px",
-                padding     : "6px 14px",
-                cursor      : "pointer",
-                fontFamily  : "Arial",
-                fontSize    : "13px",
-                transition  : "background 0.3s",
-              }}
-            >
-              {copied ? "✓ Copied!" : "🔗 Copy Student Link"}
-            </button>
-          )}
-
-          {/* Assessment Builder (teacher mode + session exists) */}
-          {mode === "teacher" && sessionId && (
-            <button
-              onClick={() => setScreen("assessmentBuilder")}
-              style={{
-                background  : "rgba(255,255,255,0.15)",
-                color       : "white",
-                border      : "1px solid rgba(255,255,255,0.3)",
-                borderRadius: "6px",
-                padding     : "6px 14px",
-                cursor      : "pointer",
-                fontFamily  : "Arial",
-                fontSize    : "13px",
+                background: "rgba(255,255,255,0.15)", color: "white",
+                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                padding: "6px 14px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "13px",
               }}
             >
               📝 Assessment
             </button>
           )}
 
-          {/* New Unit (teacher mode + session exists) */}
-          {sessionId && mode === "teacher" && (
+          {/* Teacher Dashboard — teachers only */}
+          {isTeacher && sessionId && (
+            <button
+              onClick={() => navigateTo("teacherDashboard")}
+              style={{
+                background: "rgba(255,255,255,0.15)", color: "white",
+                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                padding: "6px 14px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "13px",
+              }}
+            >
+              📊 Dashboard
+            </button>
+          )}
+
+          {/* New Unit — anyone with a session */}
+          {sessionId && (
             <button
               onClick={handleNewUnit}
               style={{
-                background  : "rgba(255,255,255,0.15)",
-                color       : "white",
-                border      : "1px solid rgba(255,255,255,0.3)",
-                borderRadius: "6px",
-                padding     : "6px 14px",
-                cursor      : "pointer",
-                fontFamily  : "Arial",
-                fontSize    : "13px",
+                background: "rgba(255,255,255,0.15)", color: "white",
+                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                padding: "6px 14px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "13px",
               }}
             >
               ← New Unit
             </button>
           )}
-
-          {/* Teacher / Student view toggle */}
-          <button
-            onClick={() => setMode(mode === "student" ? "teacher" : "student")}
-            style={{
-              background: "rgba(255,255,255,0.15)", color: "white",
-              border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-              padding: "6px 14px", cursor: "pointer",
-              fontFamily: "Arial", fontSize: "13px",
-            }}
-          >
-            {mode === "student" ? "Teacher View" : "Student View"}
-          </button>
         </div>
       </div>
 
       {/* ── Unit progress stepper (template screens only) ─── */}
-      {mode === "student" && TEMPLATE_SCREENS.includes(screen) && (
+      {TEMPLATE_SCREENS.includes(screen) && (
         <UnitProgress currentScreen={screen} />
       )}
 
       {/* ── Main content ──────────────────────────────────── */}
       <div className="app-container">
         <Routes>
+          {/* Backward-compat class code URL — no auth required */}
           <Route
             path="/join/:classCode"
             element={<StudentJoinWrapper onNavigate={navigateTo} />}
@@ -282,7 +241,7 @@ function AppContent() {
       </div>
 
       {/* ── Developer panel (dev only) ────────────────────── */}
-      <DevPanel onNavigate={navigateTo} onModeChange={setMode} />
+      <DevPanel onNavigate={navigateTo} />
     </>
   )
 }

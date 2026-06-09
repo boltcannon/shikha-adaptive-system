@@ -18,6 +18,7 @@ export default function TeacherInput({ onNavigate }) {
   const {
     sessionId, setSessionId, setUnitInput,
     setGeneratedContent, setPerformance, clearStudentSession,
+    currentUser,
   } = useUnit()
 
   const [form, setForm] = useState({
@@ -91,11 +92,14 @@ export default function TeacherInput({ onNavigate }) {
   return (
     <div>
       <div style={{ marginBottom: "32px" }}>
-        <h1 className="heading-1">Adaptive Learning Framework</h1>
+        <h1 className="heading-1">
+          {currentUser?.role === "teacher" ? "Create a Learning Unit" : "Start Learning"}
+        </h1>
         <p className="subtext">
-          Select a grade, subject and chapter below. The system will generate a
-          complete learning unit using Shikha's MAT framework — Provocation
-          through Reflection.
+          {currentUser?.role === "teacher"
+            ? "Select grade, subject and chapter. The AI will generate a complete unit using Shikha's MAT framework."
+            : "Select your grade, subject and chapter. The AI will create a personalised learning unit just for you."
+          }
         </p>
       </div>
 
