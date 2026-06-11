@@ -3,7 +3,7 @@ import { useUnit } from "../context/UnitContext"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function ProjectPlanning({ onNavigate }) {
-  const { saveStudentProgress, studentProgress } = useUnit()
+  const { saveStudentProgress, studentProgress, addCompletedTemplate } = useUnit()
 
   const [projectIdea, setProjectIdea] = useState(
     studentProgress?.project_idea || ""
@@ -15,6 +15,7 @@ export default function ProjectPlanning({ onNavigate }) {
       setError("Please describe your project idea in at least a few words.")
       return
     }
+    addCompletedTemplate("projectPlanning")
     saveStudentProgress({
       project_idea        : projectIdea.trim(),
       current_screen      : "rac",

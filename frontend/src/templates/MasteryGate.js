@@ -13,7 +13,7 @@ const FALLBACK_SUBTOPICS = [
 ]
 
 export default function MasteryGate({ onNavigate }) {
-  const { sessionId, generatedContent, addCompletedTemplate, updatePerformance, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, updatePerformance, saveStudentProgress, studentProgress } = useUnit()
 
   // Initialisation state
   const [subtopics,            setSubtopics]            = useState([])
@@ -65,6 +65,12 @@ export default function MasteryGate({ onNavigate }) {
     const pct        = masteryTotal > 0 ? masteryScore / masteryTotal : 1
     const nextScreen = pct >= 0.5 ? "projectPlanning" : "analysis_review"
     addCompletedTemplate("masteryGate")
+    saveStudentProgress({
+      completed_templates: [
+        ...(studentProgress?.completed_templates || []),
+        "masteryGate",
+      ],
+    })
     onNavigate(nextScreen)
   }
 

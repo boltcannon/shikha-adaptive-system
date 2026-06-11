@@ -425,6 +425,7 @@ async def generate_all_templates(session_id: str):
                         "created_at"       : datetime.datetime.utcnow(),
                         "students"         : [],
                         "status"           : "active",
+                        "teacher_id"       : session.get("teacher_id"),
                     })
                     print(f"Auto-created class: {_code}")
             except Exception as _e:
@@ -526,6 +527,7 @@ async def generate_all_templates(session_id: str):
                 "created_at"       : datetime.datetime.utcnow(),
                 "students"         : [],
                 "status"           : "active",
+                "teacher_id"       : session.get("teacher_id"),
             })
             print(f"Auto-created class: {_code}")
     except Exception as _e:

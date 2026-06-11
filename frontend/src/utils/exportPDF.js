@@ -167,6 +167,6 @@ export async function exportReportAsPDF(artifact, studentName, unitInput) {
   const safeName  = (artifact.report_title || "Data_Report")
     .replace(/\s+/g, "_")
     .replace(/[^a-zA-Z0-9_]/g, "")
-  const safeStudent = (studentName || "Student").replace(/\s+/g, "_")
+  const safeStudent = (studentName || "Student").replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "")
   pdf.save(`${safeName}_${safeStudent}.pdf`)
 }
