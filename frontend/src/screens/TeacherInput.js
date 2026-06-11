@@ -40,6 +40,18 @@ export default function TeacherInput({ onNavigate }) {
   // ── Fetch context suggestions when chapter is selected ──
   const fetchContextSuggestions = async (grade, subject, chapter) => {
     if (!chapter) return
+
+    // Check localStorage cache — avoids a 3-8s Claude call for repeat visits
+    const cacheKey = `ctx_${grade}_${subject}_${chapter}`.replace(/\s+/g, "_")
+    const cached   = localStorage.getItem(cacheKey)
+    if (cached) {
+      try {
+        setContextSuggestions(JSON.parse(cached))
+        setForm(prev => ({ ...prev, context: "" }))
+        return
+      } catch (e) { /* bad entry — fall through */ }
+    }
+
     setLoadingContexts(true)
     try {
       const result = await api.getContextSuggestions(grade, subject, chapter)
@@ -48,6 +60,8 @@ export default function TeacherInput({ onNavigate }) {
         // Clear any previously selected context so the teacher
         // consciously picks from the chapter-specific suggestions
         setForm(prev => ({ ...prev, context: "" }))
+        // Cache for instant retrieval next time
+        localStorage.setItem(cacheKey, JSON.stringify(result.contexts))
       }
     } catch (e) {
       console.log("Could not load context suggestions")

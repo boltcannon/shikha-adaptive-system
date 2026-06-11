@@ -5,7 +5,7 @@ import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function Discussion({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -18,6 +18,11 @@ export default function Discussion({ onNavigate }) {
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
+    if (generatedContent?.discussion) {
+      setData(generatedContent.discussion)
+      setLoading(false)
+      return
+    }
     api.generateDiscussion(sessionId)
       .then(res => { setData(res); setLoading(false) })
       .catch(() => setLoading(false))

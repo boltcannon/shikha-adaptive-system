@@ -5,7 +5,7 @@ import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function Analysis({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   // step: "organiser" | "checking" | "results" | "synthesis"
@@ -27,6 +27,11 @@ export default function Analysis({ onNavigate }) {
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
+    if (generatedContent?.analysis) {
+      setData(generatedContent.analysis)
+      setLoading(false)
+      return
+    }
     api.generateAnalysis(sessionId)
       .then(res => { setData(res); setLoading(false) })
       .catch(() => setLoading(false))

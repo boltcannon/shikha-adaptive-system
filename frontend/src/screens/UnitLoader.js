@@ -2,16 +2,37 @@ import React, { useEffect, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
+const LOADING_MESSAGES = [
+  "Setting up your learning unit...",
+  "Creating your Provocation scenarios...",
+  "Preparing New Content Learning...",
+  "Building Analysis activities...",
+  "Generating Discussion questions...",
+  "Creating your Mastery Gate...",
+  "Personalising your Reflection...",
+  "Almost ready...",
+]
+
 export default function UnitLoader({ onNavigate }) {
   const { sessionId, unitInput, setGeneratedContent } = useUnit()
 
-  const [timedOut, setTimedOut] = useState(false)
-  const [error,    setError]    = useState("")
+  const [timedOut,      setTimedOut]      = useState(false)
+  const [error,         setError]         = useState("")
+  const [messageIndex,  setMessageIndex]  = useState(0)
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
     startGeneration()
   }, [sessionId]) // eslint-disable-line
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex(prev =>
+        prev < LOADING_MESSAGES.length - 1 ? prev + 1 : prev
+      )
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
 
   const startGeneration = async () => {
     setTimedOut(false)
@@ -125,10 +146,13 @@ export default function UnitLoader({ onNavigate }) {
         <h2 style={{ fontSize: "22px", color: "#1A5276", fontFamily: "Arial", fontWeight: "bold", marginBottom: "8px" }}>
           We are almost there...
         </h2>
-        <p style={{ fontSize: "14px", color: "#5D6D7E", fontFamily: "Arial" }}>
+        <p style={{ fontSize: "16px", color: "#1A5276", fontFamily: "Arial", marginBottom: "6px", minHeight: "24px" }}>
+          {LOADING_MESSAGES[messageIndex]}
+        </p>
+        <p style={{ fontSize: "13px", color: "#95A5A6", fontFamily: "Arial" }}>
           {unitInput?.context && unitInput.context !== "general"
-            ? `Building your ${unitInput.context} unit`
-            : "Building your unit"}
+            ? `Connecting everything to ${unitInput.context}`
+            : "This usually takes 30–60 seconds"}
         </p>
       </div>
 

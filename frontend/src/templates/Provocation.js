@@ -13,7 +13,7 @@ const NORMS = [
 ]
 
 export default function Provocation({ onNavigate }) {
-  const { sessionId, addCompletedTemplate, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
@@ -35,6 +35,11 @@ export default function Provocation({ onNavigate }) {
 
   useEffect(() => {
     if (!sessionId) { onNavigate("teacherInput"); return }
+    if (generatedContent?.provocation) {
+      setData(generatedContent.provocation)
+      setLoading(false)
+      return
+    }
     api.generateProvocation(sessionId)
       .then(res => { setData(res); setLoading(false) })
       .catch(() => { setError("Failed to generate Provocation"); setLoading(false) })

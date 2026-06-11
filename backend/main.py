@@ -44,9 +44,11 @@ use_tls = "mongodb+srv" in MONGODB_URI or "mongodb.net" in MONGODB_URI
 if use_tls:
     mongo_client = MongoClient(
         MONGODB_URI,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000,
+        serverSelectionTimeoutMS=3000,
+        connectTimeoutMS=3000,
         socketTimeoutMS=5000,
+        maxPoolSize=10,
+        minPoolSize=1,
         tls=True,
         tlsAllowInvalidCertificates=True,
         tlsAllowInvalidHostnames=True,
@@ -54,9 +56,11 @@ if use_tls:
 else:
     mongo_client = MongoClient(
         MONGODB_URI,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000,
+        serverSelectionTimeoutMS=3000,
+        connectTimeoutMS=3000,
         socketTimeoutMS=5000,
+        maxPoolSize=10,
+        minPoolSize=1,
     )
 db = mongo_client["shikha_framework"]
 cache_collection    = db["unit_cache"]
@@ -88,6 +92,10 @@ app.add_middleware(
 
 # ── In-memory session store ───────────────────────────────
 sessions = {}
+
+# ── Per-session generated-content cache (avoids repeat Claude calls) ──
+_rac_cache:          dict = {}   # session_id → rac suggestions result
+_context_cache:      dict = {}   # "grade|subject|chapter" → context list
 
 
 # ── Explicit OPTIONS preflight handler ────────────────────
@@ -944,9 +952,14 @@ async def get_context_suggestions(data: dict = Body(default={})):
     if not chapter:
         return {"contexts": _DEFAULT_CONTEXTS}
 
+    cache_key = f"{grade}|{subject}|{chapter}"
+    if cache_key in _context_cache:
+        return _context_cache[cache_key]
+
     try:
         result = await generate_context_suggestions(grade, subject, chapter)
         if result.get("contexts") and len(result["contexts"]) > 0:
+            _context_cache[cache_key] = result
             return result
         return {"contexts": _DEFAULT_CONTEXTS}
     except Exception as e:
@@ -964,12 +977,17 @@ async def get_rac_suggestions(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # In-memory cache — repeat calls within the same server process are instant
+    if session_id in _rac_cache:
+        return _rac_cache[session_id]
+
     mastery_result = session.get("performance", {}).get("masteryGateResult", "")
     result = await generate_rac_suggestions(
         session["unit_input"],
         mastery_result,
         session.get("performance", {}),
     )
+    _rac_cache[session_id] = result
     return result
 
 
