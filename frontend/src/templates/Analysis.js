@@ -5,7 +5,7 @@ import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
 export default function Analysis({ onNavigate }) {
-  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
+  const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress, studentProgress } = useUnit()
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   // step: "organiser" | "checking" | "results" | "synthesis"
@@ -32,7 +32,8 @@ export default function Analysis({ onNavigate }) {
       setLoading(false)
       return
     }
-    api.generateAnalysis(sessionId)
+    const weakSubtopics = studentProgress?.weak_subtopics || []
+    api.generateAnalysis(sessionId, weakSubtopics)
       .then(res => { setData(res); setLoading(false) })
       .catch(() => setLoading(false))
   }, [sessionId]) // eslint-disable-line

@@ -61,11 +61,31 @@ export default function QuizRunner({
       level         : q.level    || "medium",
     }))
 
+    const _buildAnalysis = (resultsList) => {
+      // Pair results with the original questions to get per-question subtopic keys
+      const withSubtopic = resultsList.map((r, i) => ({
+        ...r,
+        subtopic: questions[i]?.subtopic || subtopic || "general",
+      }))
+      const weakSubtopics = withSubtopic
+        .filter(r => !r.is_correct)
+        .map(r => r.subtopic)
+        .filter((v, i, a) => a.indexOf(v) === i)
+      const strongSubtopics = withSubtopic
+        .filter(r => r.is_correct)
+        .map(r => r.subtopic)
+        .filter((v, i, a) => a.indexOf(v) === i)
+      const wrongQuestions = resultsList
+        .filter(r => !r.is_correct)
+        .map(r => r.question)
+      return { weakSubtopics, strongSubtopics, wrongQuestions }
+    }
+
     try {
       const batchResult = await api.checkAnswersBatch(sessionId, answersToCheck)
       setResults(batchResult)
       setPhase("results")
-      onComplete(batchResult.score, batchResult)
+      onComplete(batchResult.score, batchResult, _buildAnalysis(batchResult.results || []))
     } catch (e) {
       // Fallback — score locally, no AI feedback
       const score = questions.reduce((acc, q, i) => {
@@ -88,11 +108,12 @@ export default function QuizRunner({
           is_correct    : (studentAnswers[i] || "").trim().toLowerCase() ===
                           (q.correct_answer || "").trim().toLowerCase(),
           explanation   : q.explanation || "",
+          subtopic      : q.subtopic || subtopic || "general",
         })),
       }
       setResults(fallback)
       setPhase("results")
-      onComplete(score, fallback)
+      onComplete(score, fallback, _buildAnalysis(fallback.results))
     }
   }
 

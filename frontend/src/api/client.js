@@ -106,10 +106,29 @@ export const api = {
     return r.json()
   },
 
-  generateAnalysis: async (sessionId) => {
+  generateAnalysis: async (sessionId, weakSubtopics = []) => {
     const r = await fetch(
       `${BASE_URL}/generate/analysis/${sessionId}`,
-      { method: "POST" }
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({ weak_subtopics: weakSubtopics }),
+      }
+    )
+    return r.json()
+  },
+
+  generateNclReview: async (sessionId, weakSubtopics, wrongQuestions) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/ncl-review/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({
+          weak_subtopics : weakSubtopics  || [],
+          wrong_questions: wrongQuestions || [],
+        }),
+      }
     )
     return r.json()
   },

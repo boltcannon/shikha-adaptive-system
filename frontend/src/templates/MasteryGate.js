@@ -99,16 +99,25 @@ export default function MasteryGate({ onNavigate }) {
     )
   }
 
-  // Build flat question list from pre-generated pool.
-  // Each subtopic contributes up to 2 knowledge + 2 skills questions.
+  // Weight questions toward weak subtopics from NCL exit ticket
+  const weakSubtopics = studentProgress?.weak_subtopics || []
+
+  // Build flat question list — weak subtopics get more questions (3K+2S vs 1K+1S)
   const allMasteryQuestions = subtopics.flatMap(st => {
     const pool      = preGeneratedQuestions?.[st.key] || {}
-    const knowledge = (pool.knowledge || []).filter(Boolean).slice(0, 2)
-    const skills    = (pool.skills    || []).filter(Boolean).slice(0, 2)
-    return [...knowledge, ...skills].map(q => ({
+    const knowledge = (pool.knowledge || []).filter(Boolean)
+    const skills    = (pool.skills    || []).filter(Boolean)
+    const isWeak    = weakSubtopics.includes(st.key) || weakSubtopics.includes(st.label)
+    const kCount    = isWeak ? 3 : 1
+    const sCount    = isWeak ? 2 : 1
+    return [
+      ...knowledge.slice(0, kCount),
+      ...skills.slice(0, sCount),
+    ].filter(Boolean).map(q => ({
       ...q,
       subtopic: st.key,
       label   : st.label,
+      isWeak,
     }))
   })
 
@@ -119,17 +128,24 @@ export default function MasteryGate({ onNavigate }) {
         subtitle={`${allMasteryQuestions.length} questions across all sub-topics`}
       />
 
-      {/* Subtopic pills — static labels */}
+      {/* Subtopic pills — amber for weak, blue for strong */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "20px" }}>
-        {subtopics.map(st => (
-          <span key={st.key} style={{
-            padding: "4px 12px", borderRadius: "16px",
-            fontSize: "12px", fontWeight: "bold", fontFamily: "Arial",
-            background: "#EBF5FB", color: "#1A5276",
-          }}>
-            {st.label}
-          </span>
-        ))}
+        {subtopics.map(st => {
+          const isWeak = weakSubtopics.includes(st.key) || weakSubtopics.includes(st.label)
+          return (
+            <span key={st.key} style={{
+              padding   : "4px 12px",
+              borderRadius: "16px",
+              fontSize  : "12px",
+              fontWeight: "bold",
+              fontFamily: "Arial",
+              background: isWeak ? "#FADBD8" : "#EBF5FB",
+              color     : isWeak ? "#C0392B" : "#1A5276",
+            }}>
+              {isWeak ? "⚠ " : ""}{st.label}
+            </span>
+          )
+        })}
       </div>
 
       {/* Quiz */}
@@ -138,7 +154,7 @@ export default function MasteryGate({ onNavigate }) {
         subtopic="mastery"
         title="Mastery Gate"
         subtitle={`${allMasteryQuestions.length} questions across all sub-topics`}
-        onComplete={(score, results) => {
+        onComplete={(score, results, analysis) => {
           const total  = allMasteryQuestions.length
           const colour = score >= total * 0.8 ? "green"
                        : score >= total * 0.5 ? "amber"
@@ -149,8 +165,10 @@ export default function MasteryGate({ onNavigate }) {
           setMasteryDone(true)
           updatePerformance("masteryGateResult", `${score}/${total} — ${colour}`)
           saveStudentProgress({
-            mastery_gate_result: `${score}/${total} — ${colour}`,
-            current_screen     : nextScreen,
+            mastery_gate_result     : `${score}/${total} — ${colour}`,
+            current_screen          : nextScreen,
+            mastery_weak_subtopics  : analysis?.weakSubtopics  || [],
+            mastery_wrong_questions : analysis?.wrongQuestions  || [],
           })
         }}
       />

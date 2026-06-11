@@ -22,6 +22,7 @@ from framework.mat_engine import (
     generate_discussion,
     generate_mastery_question,
     generate_ncl,
+    generate_ncl_review,
     generate_provocation,
     generate_rac_suggestions,
     generate_rac_template,
@@ -875,13 +876,27 @@ async def get_mastery_question(
 
 
 @app.post("/generate/analysis/{session_id}")
-async def get_analysis(session_id: str):
+async def get_analysis(session_id: str, data: dict = Body(default={})):
     session = _get_session(session_id)
     gc = session.get("generated_content", {})
     if gc.get("analysis"):
         return gc["analysis"]
+    weak_subtopics = data.get("weak_subtopics", [])
     return await generate_analysis(
-        session["unit_input"], session["performance"]
+        session["unit_input"], session["performance"], weak_subtopics
+    )
+
+
+@app.post("/generate/ncl-review/{session_id}")
+async def get_ncl_review(session_id: str, data: dict = Body(default={})):
+    session = _get_session(session_id)
+    weak_subtopics  = data.get("weak_subtopics",  [])
+    wrong_questions = data.get("wrong_questions", [])
+    return await generate_ncl_review(
+        session["unit_input"],
+        weak_subtopics,
+        wrong_questions,
+        session.get("performance", {}),
     )
 
 

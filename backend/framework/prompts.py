@@ -274,6 +274,41 @@ Return ONLY valid JSON, no other text:
 }}
 """
 
+NCL_REVIEW_PROMPT = """
+{system_base}
+
+TEMPLATE: NCL REVIEW — TARGETED REMEDIATION
+Your role: Instructor (remediation mode)
+
+A student struggled with these concepts:
+Weak subtopics: {weak_subtopics}
+Questions they got wrong: {wrong_questions}
+
+Chapter: {chapter}
+Context: {context}
+
+Generate a DIFFERENT explanation that:
+1. Uses completely different examples from the original explanation
+2. Starts simpler — builds up slowly
+3. Directly addresses each weak subtopic
+4. Uses analogies from {context} to explain
+5. Includes a worked example for each weak subtopic
+
+Do NOT repeat the same explanation.
+Use a fresh approach as if explaining for the first time
+to someone who tried once and got confused.
+
+Return ONLY valid JSON:
+{{
+  "review_title"     : "string — e.g. Let's try a different approach",
+  "what_went_wrong"  : "string — warm acknowledgement of what was tricky, 1-2 sentences",
+  "fresh_explanation": "string — completely new explanation using different examples, 3-4 paragraphs",
+  "key_insight"      : "string — the one thing that makes everything click",
+  "practice_tip"     : "string — one concrete thing student can do to remember this",
+  "encouragement"    : "string — genuine warm encouragement, 1-2 sentences"
+}}
+"""
+
 ANALYSIS_PROMPT = """
 {system_base}
 
@@ -285,6 +320,13 @@ patterns and draw conclusions.
 Generate an Analysis class for:
 Chapter: {chapter}
 Context: {context}
+Student's weak subtopics from NCL: {weak_subtopics}
+
+Rules for data artifact:
+- If weak_subtopics is not empty, include data that specifically
+  exercises those weak subtopics (e.g. if weak on negative integers,
+  include negative numbers in the data)
+- If student was strong on everything, use more complex mixed data
 
 Requirements:
 - Create a realistic data artifact using the context

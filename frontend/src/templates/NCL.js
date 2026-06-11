@@ -218,7 +218,15 @@ export default function NCL({ onNavigate }) {
           subtopic="ncl_exit_ticket"
           title="Exit Ticket"
           subtitle={`${exitQuestions.length} questions across all sub-topics`}
-          onComplete={(score) => setExitScore(score)}
+          onComplete={(score, results, analysis) => {
+            setExitScore(score)
+            saveStudentProgress({
+              exit_ticket_score   : score,
+              weak_subtopics      : analysis?.weakSubtopics  || [],
+              strong_subtopics    : analysis?.strongSubtopics || [],
+              wrong_questions_ncl : analysis?.wrongQuestions  || [],
+            })
+          }}
         />
       </div>
     )

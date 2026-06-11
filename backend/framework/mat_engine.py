@@ -8,6 +8,7 @@ from .prompts import (
     SHIKHA_SYSTEM_BASE,
     PROVOCATION_PROMPT,
     NCL_PROMPT,
+    NCL_REVIEW_PROMPT,
     ANSWER_CHECK_PROMPT,
     DISCUSSION_PROMPT,
     MASTERY_GATE_QUESTION_PROMPT,
@@ -162,14 +163,32 @@ async def generate_mastery_question(
     return await asyncio.to_thread(call_claude, prompt)
 
 
-async def generate_analysis(unit_input, performance={}):
+async def generate_analysis(unit_input, performance={}, weak_subtopics=[]):
     system_base = build_system_base(unit_input, performance)
     prompt = ANALYSIS_PROMPT.format(
-        system_base=system_base,
-        chapter=unit_input.chapter,
-        context=unit_input.context,
+        system_base    = system_base,
+        chapter        = unit_input.chapter,
+        context        = unit_input.context,
+        weak_subtopics = ", ".join(weak_subtopics) or "none identified yet",
     )
     return await asyncio.to_thread(call_claude, prompt)
+
+
+async def generate_ncl_review(
+    unit_input,
+    weak_subtopics  = [],
+    wrong_questions = [],
+    performance     = {},
+):
+    system_base = build_system_base(unit_input, performance)
+    prompt = NCL_REVIEW_PROMPT.format(
+        system_base     = system_base,
+        weak_subtopics  = ", ".join(weak_subtopics) or "general concepts",
+        wrong_questions = "\n".join(f"- {q}" for q in wrong_questions[:5]) or "Not specified",
+        chapter         = unit_input.chapter,
+        context         = unit_input.context,
+    )
+    return await asyncio.to_thread(call_claude, prompt, 1500)
 
 
 async def guide_project(
