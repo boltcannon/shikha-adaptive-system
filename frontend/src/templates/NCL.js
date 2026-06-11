@@ -9,6 +9,7 @@ export default function NCL({ onNavigate }) {
   const {
     sessionId,
     generatedContent,
+    studentProgress,
     nclProgress,
     updateNclProgress,
     saveStudentProgress,
@@ -59,8 +60,9 @@ export default function NCL({ onNavigate }) {
       const missing = subs.filter(st => !ncl[st.key])
       if (missing.length > 0) {
         try {
+          const studentObservation = studentProgress?.provocation_observation || ""
           const retries = await Promise.all(
-            missing.map(st => api.generateNCL(sessionId, st.label))
+            missing.map(st => api.generateNclForSubtopic(sessionId, st.label, studentObservation))
           )
           retries.forEach((r, i) => {
             if (r && r.subtopic_name) ncl[missing[i].key] = r
@@ -267,6 +269,31 @@ export default function NCL({ onNavigate }) {
       {/* INSTRUCTION STEP */}
       {learningStep === "instruction" && (
         <div>
+          {/* Your initial observation callout */}
+          {studentProgress?.provocation_observation && (
+            <div style={{
+              borderLeft: "4px solid #E87722",
+              background: "#FEF9E7",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "16px",
+            }}>
+              <p style={{
+                fontSize: "11px", fontWeight: "bold", color: "#E87722",
+                fontFamily: "Arial", marginBottom: "4px",
+                textTransform: "uppercase", letterSpacing: "0.5px",
+              }}>
+                Your Initial Observation
+              </p>
+              <p style={{
+                fontSize: "14px", color: "#7D6608",
+                fontFamily: "Arial", lineHeight: "1.6", fontStyle: "italic",
+              }}>
+                "{studentProgress.provocation_observation}"
+              </p>
+            </div>
+          )}
+
           <div className="card" style={{ background: "#EBF5FB", marginBottom: "16px" }}>
             <h2 style={{
               fontSize: "20px", fontWeight: "bold", color: "#1A5276",

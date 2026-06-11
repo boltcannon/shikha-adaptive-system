@@ -93,11 +93,24 @@ async def generate_provocation(unit_input, performance={}):
     return await asyncio.to_thread(call_claude, prompt)
 
 
-async def generate_ncl(unit_input, subtopic, performance={}):
+async def generate_ncl(
+    unit_input, subtopic, performance={},
+    student_observation="", student_reflection="",
+):
     system_base = build_system_base(unit_input, performance)
+    if student_observation:
+        student_context = (
+            f'\nStudent\'s initial observation from the Provocation:\n'
+            f'"{student_observation}"\n\n'
+            f'Connect the concept_explanation and real_world_connection back to '
+            f'what this student already noticed.\n'
+        )
+    else:
+        student_context = ""
     prompt = NCL_PROMPT.format(
         system_base=system_base,
         subtopic=subtopic,
+        student_context=student_context,
     )
     return await asyncio.to_thread(call_claude, prompt, 3000)
 
@@ -267,6 +280,8 @@ async def generate_reflection(
     project_idea="",
     templates_completed="",
     performance={},
+    provocation_observation="",
+    provocation_reflections=None,
 ):
     system_base = build_system_base(unit_input, performance)
 
@@ -288,13 +303,23 @@ async def generate_reflection(
     else:
         score_text = "Not completed"
 
+    # Format provocation data
+    prov_obs_text = provocation_observation or "Not recorded"
+    if provocation_reflections:
+        refs = [r for r in provocation_reflections if r and str(r).strip()]
+        prov_ref_text = "; ".join(refs) if refs else "Not recorded"
+    else:
+        prov_ref_text = "Not recorded"
+
     prompt = REFLECTION_PROMPT.format(
-        system_base         = system_base,
-        exit_ticket_score   = score_text,
-        mastery_gate_result = mastery_gate_result or "Not completed",
-        project_idea        = project_idea        or "Not started",
-        templates_completed = templates_completed  or "In progress",
-        chapter             = unit_input.chapter,
-        context             = unit_input.context,
+        system_base             = system_base,
+        exit_ticket_score       = score_text,
+        mastery_gate_result     = mastery_gate_result or "Not completed",
+        project_idea            = project_idea        or "Not started",
+        templates_completed     = templates_completed  or "In progress",
+        chapter                 = unit_input.chapter,
+        context                 = unit_input.context,
+        provocation_observation = prov_obs_text,
+        provocation_reflections = prov_ref_text,
     )
     return await asyncio.to_thread(call_claude, prompt, 1200)

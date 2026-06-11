@@ -826,6 +826,22 @@ function StudentPanel({ student, onClose }) {
         ))}
       </div>
 
+      {/* Initial Observation */}
+      {p.provocation_observation && (
+        <div style={{ marginBottom: "16px" }}>
+          <p style={{ fontSize: "11px", fontWeight: "bold", color: "#5D6D7E", fontFamily: "Arial", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Initial Observation
+          </p>
+          <div style={{
+            borderLeft: "4px solid #E87722", paddingLeft: "10px",
+            fontSize: "12px", color: "#2C3E50",
+            fontFamily: "Arial", lineHeight: "1.5", fontStyle: "italic",
+          }}>
+            "{p.provocation_observation}"
+          </div>
+        </div>
+      )}
+
       {/* Recommendation */}
       <p style={{ fontSize: "11px", fontWeight: "bold", color: "#5D6D7E", fontFamily: "Arial", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
         Recommended Next

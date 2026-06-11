@@ -544,11 +544,14 @@ async def get_provocation(session_id: str):
 
 
 @app.post("/generate/ncl/{session_id}")
-async def get_ncl(session_id: str, subtopic: str):
-    session = _get_session(session_id)
+async def get_ncl(session_id: str, subtopic: str, data: dict = Body(default={})):
+    session             = _get_session(session_id)
+    student_observation = data.get("student_observation", "")
+    student_reflection  = data.get("student_reflection",  "")
     # NCL is subtopic-specific — always generate fresh
     return await generate_ncl(
-        session["unit_input"], subtopic, session["performance"]
+        session["unit_input"], subtopic, session["performance"],
+        student_observation, student_reflection,
     )
 
 
@@ -896,10 +899,12 @@ async def get_reflection(
 
     # Pull performance data from request body first, then fall back to session
     perf = session.get("performance", {})
-    exit_ticket_score   = data.get("exit_ticket_score")
-    mastery_gate_result = data.get("mastery_gate_result", "")
-    project_idea        = data.get("project_idea", "")
-    templates_completed = data.get("templates_completed", "")
+    exit_ticket_score       = data.get("exit_ticket_score")
+    mastery_gate_result     = data.get("mastery_gate_result", "")
+    project_idea            = data.get("project_idea", "")
+    templates_completed     = data.get("templates_completed", "")
+    provocation_observation = data.get("provocation_observation", "")
+    provocation_reflections = data.get("provocation_reflections", [])
 
     if exit_ticket_score is None:
         exit_ticket_score = perf.get("exitTicketScore")
@@ -913,6 +918,8 @@ async def get_reflection(
         project_idea,
         templates_completed,
         perf,
+        provocation_observation,
+        provocation_reflections,
     )
 
     # Cache the personalised reflection in the session

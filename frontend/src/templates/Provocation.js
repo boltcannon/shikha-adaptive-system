@@ -50,7 +50,20 @@ export default function Provocation({ onNavigate }) {
 
   const handleBeginLearning = () => {
     addCompletedTemplate("provocation")
-    saveStudentProgress({ current_screen: "ncl" })
+    saveStudentProgress({
+      current_screen          : "ncl",
+      provocation_answers     : {
+        observation   : observationText,
+        reflections   : scenarioReflections.filter(r => r.trim().length > 0),
+        scenarios_seen: scenarios.map(s => s.title),
+      },
+      provocation_observation : observationText,
+      provocation_reflections : [
+        scenarioReflections[0] || "",
+        scenarioReflections[1] || "",
+        scenarioReflections[2] || "",
+      ],
+    })
     onNavigate("ncl")
   }
 

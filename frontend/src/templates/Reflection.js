@@ -40,7 +40,9 @@ export default function Reflection({ onNavigate }) {
         progress.exit_ticket_score,
         progress.mastery_gate_result,
         progress.project_idea,
-        (progress.completed_templates || []).join(", ")
+        (progress.completed_templates || []).join(", "),
+        progress.provocation_observation || "",
+        progress.provocation_reflections || []
       )
       setContent(result)
     } catch (e) {

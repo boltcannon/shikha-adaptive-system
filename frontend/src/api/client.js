@@ -34,6 +34,18 @@ export const api = {
     return r.json()
   },
 
+  generateNclForSubtopic: async (sessionId, subtopic, studentObservation = "") => {
+    const r = await fetch(
+      `${BASE_URL}/generate/ncl/${sessionId}?subtopic=${encodeURIComponent(subtopic)}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify({ student_observation: studentObservation }),
+      }
+    )
+    return r.json()
+  },
+
   checkAnswer: async (sessionId, question, correctAnswer,
     studentAnswer, subtopic, dimension, level) => {
     const r = await fetch(`${BASE_URL}/check/answer`, {
@@ -317,7 +329,9 @@ export const api = {
     exitTicketScore,
     masteryGateResult,
     projectIdea,
-    templatesCompleted
+    templatesCompleted,
+    provocationObservation = "",
+    provocationReflections = []
   ) => {
     const r = await fetch(
       `${BASE_URL}/generate/reflection/${sessionId}`,
@@ -325,10 +339,12 @@ export const api = {
         method : "POST",
         headers: { "Content-Type": "application/json" },
         body   : JSON.stringify({
-          exit_ticket_score  : exitTicketScore,
-          mastery_gate_result: masteryGateResult,
-          project_idea       : projectIdea,
-          templates_completed: templatesCompleted,
+          exit_ticket_score      : exitTicketScore,
+          mastery_gate_result    : masteryGateResult,
+          project_idea           : projectIdea,
+          templates_completed    : templatesCompleted,
+          provocation_observation: provocationObservation,
+          provocation_reflections: provocationReflections,
         }),
       }
     )

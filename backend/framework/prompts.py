@@ -87,7 +87,7 @@ Purpose: Teach a new concept clearly for the first time.
 
 Generate complete NCL content for:
 Subtopic: {subtopic}
-
+{student_context}
 Requirements:
 - Explain the concept simply and clearly
 - Use ONLY the context provided for all examples
@@ -624,8 +624,14 @@ Student performance data:
 - Chapter: {chapter}
 - Context: {context}
 
+What this student observed BEFORE the unit began (Provocation phase):
+- Initial observation: {provocation_observation}
+- Reflections on scenarios: {provocation_reflections}
+
 Use this data to make every question feel
-personal to THIS student's journey.
+personal to THIS student's journey. Reference their
+initial observation to show how far their thinking
+has grown by the end of the unit.
 
 Rules:
 - If exit ticket score mentions "Needs review":
