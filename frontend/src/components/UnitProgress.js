@@ -1,99 +1,126 @@
 import React from "react"
 import { useUnit } from "../context/UnitContext"
 
-const STEPS = [
-  { key: "provocation",     label: "Provocation"  },
-  { key: "ncl",             label: "NCL"          },
-  { key: "analysis",        label: "Analysis"     },
-  { key: "discussion",      label: "Discussion"   },
-  { key: "masteryGate",     label: "Mastery Gate" },
-  { key: "projectPlanning", label: "Project"      },
-  { key: "rac",             label: "Research"     },
-  { key: "reflection",      label: "Reflection"   },
+const TEMPLATES = [
+  { key: "provocation",     label: "Provocation",  short: "Prov" },
+  { key: "ncl",             label: "NCL",          short: "NCL"  },
+  { key: "analysis",        label: "Analysis",     short: "Anal" },
+  { key: "discussion",      label: "Discussion",   short: "Disc" },
+  { key: "masteryGate",     label: "Mastery Gate", short: "Gate" },
+  { key: "projectPlanning", label: "Planning",     short: "Plan" },
+  { key: "rac",             label: "Research",     short: "RAC"  },
+  { key: "reflection",      label: "Reflection",   short: "Refl" },
 ]
 
-// Review screens map to their parent step for highlight purposes
-const SCREEN_TO_STEP = {
-  ncl_review      : "ncl",
-  analysis_review : "analysis",
-}
-
 export default function UnitProgress({ currentScreen }) {
-  const { performance } = useUnit()
-  const completed = performance?.completedTemplates || []
+  const { studentProgress } = useUnit()
 
-  // Resolve review screens to their base step key
-  const activeStep = SCREEN_TO_STEP[currentScreen] || currentScreen
+  // Read from studentProgress which is persisted
+  // to MongoDB and restored on every login
+  const completed = studentProgress?.completed_templates
+                    || []
+
+  const unitScreens = TEMPLATES.map(t => t.key)
+  if (!unitScreens.includes(currentScreen) &&
+      currentScreen !== "ncl_review" &&
+      currentScreen !== "analysis_review") {
+    return null
+  }
+
+  const currentIndex = TEMPLATES.findIndex(t => {
+    if (currentScreen === "ncl_review")
+      return t.key === "ncl"
+    if (currentScreen === "analysis_review")
+      return t.key === "analysis"
+    return t.key === currentScreen
+  })
 
   return (
     <div style={{
       background   : "white",
-      borderBottom : "1px solid #E5E7E9",
+      borderBottom : "1px solid #F2F3F4",
       padding      : "10px 24px",
+      marginBottom : "0"
     }}>
+      {/* Progress bar */}
       <div style={{
-        display      : "flex",
-        alignItems   : "center",
-        overflowX    : "auto",
-        paddingBottom: "2px",
+        display    : "flex",
+        alignItems : "center",
+        gap        : "0",
+        marginBottom: "6px"
       }}>
-        {STEPS.map((step, i) => {
-          const isDone    = completed.includes(step.key)
-          const isCurrent = step.key === activeStep
-
-          const ringColor = isDone ? "#1E8449" : isCurrent ? "#E87722" : "#BDC3C7"
-          const fillColor = isDone ? "#1E8449" : isCurrent ? "#E87722" : "#F2F3F4"
-          const txtColor  = isDone ? "#1E8449" : isCurrent ? "#E87722" : "#BDC3C7"
-          const lineColor = isDone ? "#1E8449" : "#E5E7E9"
+        {TEMPLATES.map((template, index) => {
+          const isDone    = completed.includes(template.key)
+          const isCurrent = index === currentIndex
 
           return (
-            <React.Fragment key={step.key}>
-              {/* Step node */}
+            <React.Fragment key={template.key}>
               <div style={{
-                display       : "flex",
-                flexDirection : "column",
-                alignItems    : "center",
-                flexShrink    : 0,
-                minWidth      : "52px",
+                width          : "28px",
+                height         : "28px",
+                borderRadius   : "50%",
+                background     : isDone ? "#1E8449"
+                  : isCurrent ? "#E87722"
+                  : "#F2F3F4",
+                border         : `2px solid ${
+                  isDone ? "#1E8449"
+                  : isCurrent ? "#E87722"
+                  : "#BDC3C7"
+                }`,
+                display        : "flex",
+                alignItems     : "center",
+                justifyContent : "center",
+                fontSize       : "10px",
+                fontWeight     : "bold",
+                color          : isDone || isCurrent
+                  ? "white" : "#BDC3C7",
+                fontFamily     : "Arial",
+                flexShrink     : 0,
+                position       : "relative",
+                zIndex         : 1,
+                transition     : "all 0.3s"
               }}>
-                <div style={{
-                  width          : "26px",
-                  height         : "26px",
-                  borderRadius   : "50%",
-                  background     : fillColor,
-                  border         : `2px solid ${ringColor}`,
-                  display        : "flex",
-                  alignItems     : "center",
-                  justifyContent : "center",
-                  color          : (isDone || isCurrent) ? "white" : "#BDC3C7",
-                  fontSize       : "11px",
-                  fontWeight     : "bold",
-                  fontFamily     : "Arial",
-                }}>
-                  {isDone ? "✓" : i + 1}
-                </div>
-                <span style={{
-                  fontSize   : "9px",
-                  fontFamily : "Arial",
-                  color      : txtColor,
-                  marginTop  : "3px",
-                  fontWeight : isCurrent ? "bold" : "normal",
-                  whiteSpace : "nowrap",
-                }}>
-                  {step.label}
-                </span>
+                {isDone ? "✓" : index + 1}
               </div>
 
-              {/* Connector line */}
-              {i < STEPS.length - 1 && (
+              {index < TEMPLATES.length - 1 && (
                 <div style={{
-                  flex        : 1,
-                  height      : "2px",
-                  background  : lineColor,
-                  minWidth    : "8px",
-                  marginBottom: "14px",
-                  flexShrink  : 1,
+                  flex      : 1,
+                  height    : "2px",
+                  background: isDone ? "#1E8449" : "#F2F3F4",
+                  minWidth  : "8px",
+                  transition: "background 0.3s"
                 }} />
+              )}
+            </React.Fragment>
+          )
+        })}
+      </div>
+
+      {/* Labels */}
+      <div style={{ display: "flex", gap: "0" }}>
+        {TEMPLATES.map((template, index) => {
+          const isDone    = completed.includes(template.key)
+          const isCurrent = index === currentIndex
+
+          return (
+            <React.Fragment key={template.key}>
+              <div style={{
+                width    : "28px",
+                textAlign: "center",
+                fontSize : "9px",
+                color    : isDone ? "#1E8449"
+                  : isCurrent ? "#E87722"
+                  : "#BDC3C7",
+                fontFamily: "Arial",
+                fontWeight: isCurrent ? "bold" : "normal",
+                flexShrink: 0,
+                overflow  : "hidden"
+              }}>
+                {template.short}
+              </div>
+              {index < TEMPLATES.length - 1 && (
+                <div style={{ flex: 1, minWidth: "8px" }} />
               )}
             </React.Fragment>
           )
