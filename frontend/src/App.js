@@ -59,6 +59,15 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [screen])
 
+  // Keep Render awake — ping every 10 minutes to prevent cold starts
+  useEffect(() => {
+    const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000"
+    const wakeUp = () => fetch(`${BASE_URL}/ping`).catch(() => {})
+    wakeUp()
+    const interval = setInterval(wakeUp, 10 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   // After auth verification — navigate returning users to their screen,
   // or send fresh logins (from AuthScreen) to teacherInput as fallback
   useEffect(() => {

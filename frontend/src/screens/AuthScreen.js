@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 
@@ -10,6 +10,25 @@ export default function AuthScreen({ onNavigate }) {
   const [form,    setForm]    = useState({ name: "", email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState("")
+
+  const [backendReady,    setBackendReady]    = useState(false)
+  const [backendChecking, setBackendChecking] = useState(true)
+
+  useEffect(() => {
+    const checkBackend = async () => {
+      const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000"
+      try {
+        const r = await fetch(`${BASE_URL}/ping`, {
+          signal: AbortSignal.timeout(5000),
+        })
+        setBackendReady(r.ok)
+      } catch (e) {
+        setBackendReady(false)
+      }
+      setBackendChecking(false)
+    }
+    checkBackend()
+  }, [])
 
   const handleSubmit = async () => {
     setError("")
@@ -73,6 +92,37 @@ export default function AuthScreen({ onNavigate }) {
           Sign in to continue
         </p>
       </div>
+
+      {/* Backend status banners */}
+      {backendChecking && (
+        <div style={{
+          background   : "#FEF9E7",
+          border       : "1px solid #B7950B",
+          borderRadius : "8px",
+          padding      : "10px 16px",
+          marginBottom : "16px",
+          textAlign    : "center",
+        }}>
+          <p style={{ fontSize: "13px", color: "#B7950B", fontFamily: "Arial", margin: 0 }}>
+            ⏳ Starting up the server...
+          </p>
+        </div>
+      )}
+
+      {!backendChecking && !backendReady && (
+        <div style={{
+          background   : "#FADBD8",
+          border       : "1px solid #C0392B",
+          borderRadius : "8px",
+          padding      : "10px 16px",
+          marginBottom : "16px",
+          textAlign    : "center",
+        }}>
+          <p style={{ fontSize: "13px", color: "#C0392B", fontFamily: "Arial", margin: 0 }}>
+            Server is starting up. Please wait 30 seconds and try again.
+          </p>
+        </div>
+      )}
 
       {/* Tab switcher */}
       <div style={{

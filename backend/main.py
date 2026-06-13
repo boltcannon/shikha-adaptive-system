@@ -240,6 +240,11 @@ def health():
     }
 
 
+@app.get("/ping")
+def ping():
+    return {"status": "alive", "timestamp": datetime.datetime.now().isoformat()}
+
+
 # ──────────────────────────────────────────────────────────
 # Auth endpoints
 # ──────────────────────────────────────────────────────────
