@@ -4,29 +4,18 @@ import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
 import TemplateHeader from "../components/TemplateHeader"
 
-const NORMS = [
-  "I will ask questions when I do not understand",
-  "I will try before asking for help",
-  "I will respect different ways of thinking",
-  "I will give honest feedback to my peers",
-  "I will reflect on my learning at every session"
-]
-
 export default function Provocation({ onNavigate }) {
   const { sessionId, generatedContent, addCompletedTemplate, saveStudentProgress } = useUnit()
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
-  const [step,    setStep]    = useState(1) // 1 | 2 | 3 | 4
+  const [step,    setStep]    = useState(1) // 1 | 2 | 3
 
   // Step 1 — shared observation about the 3 scenarios
   const [observationText, setObservationText] = useState("")
 
   // Step 3 — one reflection textarea per scenario
   const [scenarioReflections, setScenarioReflections] = useState(["", "", ""])
-
-  // Step 4 — community norms
-  const [checkedNorms, setCheckedNorms] = useState(NORMS.map(() => false))
 
   // Scroll to top whenever step changes
   useEffect(() => {
@@ -47,11 +36,6 @@ export default function Provocation({ onNavigate }) {
 
   const updateReflection = (i, value) =>
     setScenarioReflections(prev => prev.map((v, idx) => idx === i ? value : v))
-
-  const toggleNorm = (i) =>
-    setCheckedNorms(prev => prev.map((v, idx) => idx === i ? !v : v))
-
-  const allNormsChecked = checkedNorms.every(n => n)
 
   const handleBeginLearning = () => {
     addCompletedTemplate("provocation")
@@ -81,7 +65,7 @@ export default function Provocation({ onNavigate }) {
   // ── STEP 1 — Scenarios + observation ────────────────────────────
   if (step === 1) return (
     <div>
-      <TemplateHeader template="PROVOCATION" subtitle={`Step 1 of 4`} />
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 1 of 3`} />
 
       <h2 className="heading-2" style={{ marginBottom: "16px" }}>Your Scenarios</h2>
       {scenarios.map((s, i) => (
@@ -161,7 +145,7 @@ export default function Provocation({ onNavigate }) {
   // ── STEP 2 — Mission + Big Question ─────────────────────────────
   if (step === 2) return (
     <div>
-      <TemplateHeader template="PROVOCATION" subtitle={`Step 2 of 4`} />
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 2 of 3`} />
 
       <div className="dark-card" style={{ marginBottom: "24px" }}>
         <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "6px" }}>YOUR ROLE</p>
@@ -206,7 +190,7 @@ export default function Provocation({ onNavigate }) {
   // ── STEP 3 — Per-scenario reflection textareas ───────────────────
   if (step === 3) return (
     <div>
-      <TemplateHeader template="PROVOCATION" subtitle={`Step 3 of 4`} />
+      <TemplateHeader template="PROVOCATION" subtitle={`Step 3 of 3`} />
 
       <div className="card" style={{ background: "#EBF5FB", marginBottom: "20px" }}>
         <p style={{ fontFamily: "Arial", fontSize: "14px", color: "#1A5276", lineHeight: "1.6" }}>
@@ -269,7 +253,7 @@ export default function Provocation({ onNavigate }) {
             )}
             <button
               className="btn-primary"
-              onClick={() => setStep(4)}
+              onClick={handleBeginLearning}
               disabled={!canProceed}
               style={{
                 width: "100%", padding: "14px",
@@ -279,7 +263,7 @@ export default function Provocation({ onNavigate }) {
                 fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
               }}
             >
-              Next →
+              Begin Learning →
             </button>
           </>
         )
@@ -287,53 +271,4 @@ export default function Provocation({ onNavigate }) {
     </div>
   )
 
-  // ── STEP 4 — Community Norms + Begin Learning ────────────────────
-  return (
-    <div>
-      <TemplateHeader template="PROVOCATION" subtitle={`Step 4 of 4`} />
-
-      <div className="card" style={{ marginBottom: "16px" }}>
-        <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#1A5276", marginBottom: "12px" }}>
-          Community Norms — I agree to:
-        </p>
-        {NORMS.map((norm, i) => (
-          <label key={i} style={{
-            display: "flex", alignItems: "flex-start", gap: "10px",
-            marginBottom: "10px", cursor: "pointer"
-          }}>
-            <input
-              type="checkbox"
-              checked={checkedNorms[i]}
-              onChange={() => toggleNorm(i)}
-              style={{ marginTop: "2px", width: "15px", height: "15px", cursor: "pointer", flexShrink: 0 }}
-            />
-            <span style={{ fontFamily: "Arial", fontSize: "13px", color: "#2C3E50", lineHeight: "1.5" }}>
-              {norm}
-            </span>
-          </label>
-        ))}
-      </div>
-
-      {!allNormsChecked && (
-        <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#E87722", textAlign: "center", marginBottom: "8px" }}>
-          Please agree to all community norms to begin learning.
-        </p>
-      )}
-
-      <button
-        className="btn-primary"
-        onClick={handleBeginLearning}
-        disabled={!allNormsChecked}
-        style={{
-          width: "100%", padding: "14px",
-          background: allNormsChecked ? "#1A5276" : "#BDC3C7",
-          cursor: allNormsChecked ? "pointer" : "not-allowed",
-          border: "none", borderRadius: "8px", color: "white",
-          fontFamily: "Arial", fontSize: "14px", fontWeight: "bold"
-        }}
-      >
-        Begin Learning →
-      </button>
-    </div>
-  )
 }
