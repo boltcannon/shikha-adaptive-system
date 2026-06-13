@@ -10,6 +10,7 @@ import NCL from "./templates/NCL"
 import NclReview from "./screens/NclReview"
 import FinalSummary from "./screens/FinalSummary"
 import MyLearning from "./screens/MyLearning"
+import WelcomeBack from "./screens/WelcomeBack"
 import Analysis from "./templates/Analysis"
 import AnalysisReview from "./templates/AnalysisReview"
 import Discussion from "./templates/Discussion"
@@ -104,6 +105,7 @@ function AppContent() {
       case "reflection":      return <Reflection onNavigate={navigateTo} />
       case "finalSummary":    return <FinalSummary onNavigate={navigateTo} />
       case "myLearning":      return <MyLearning onNavigate={navigateTo} />
+      case "welcomeBack":     return <WelcomeBack onNavigate={navigateTo} />
       default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }

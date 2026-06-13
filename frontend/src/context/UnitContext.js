@@ -6,12 +6,25 @@ const UnitContext = createContext()
 export function UnitProvider({ children }) {
   // ── Unit / session ────────────────────────────────────────
   const [sessionId,        setSessionId]        = useState(null)
-  const [unitInput,        setUnitInput]        = useState(null)
+  const [unitInput,        setUnitInput]        = useState(() => {
+    try {
+      const saved = localStorage.getItem("unitInput")
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  })
   const [generatedContent, setGeneratedContent] = useState(null)
 
   useEffect(() => {
     if (sessionId) localStorage.setItem("sessionId", sessionId)
   }, [sessionId])
+
+  useEffect(() => {
+    if (unitInput) {
+      localStorage.setItem("unitInput", JSON.stringify(unitInput))
+    } else {
+      localStorage.removeItem("unitInput")
+    }
+  }, [unitInput])
 
   // ── Performance tracking ──────────────────────────────────
   const [performance, setPerformance] = useState({
@@ -131,7 +144,12 @@ export function UnitProvider({ children }) {
       if (contentResult?.content) setGeneratedContent(contentResult.content)
 
       const target = savedProgress.current_screen
-      setResumeScreen(target && target !== "teacherInput" ? target : "provocation")
+      const isInProgress = target &&
+        target !== "teacherInput" &&
+        target !== "finalSummary" &&
+        target !== "done"
+
+      setResumeScreen(isInProgress ? "welcomeBack" : "teacherInput")
     } catch {
       setResumeScreen("teacherInput")
     }
@@ -242,6 +260,7 @@ export function UnitProvider({ children }) {
   const clearStudentSession = () => {
     setStudentId(null)
     setStudentName(null)
+    setUnitInput(null)
     setNclProgress({ completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" })
     setStudentProgress({
       current_screen: "provocation", completed_templates: [],
@@ -253,6 +272,7 @@ export function UnitProvider({ children }) {
     localStorage.removeItem("studentProgress")
     localStorage.removeItem("nclProgress")
     localStorage.removeItem("sessionId")
+    localStorage.removeItem("unitInput")
   }
 
   return (
