@@ -54,7 +54,7 @@ export default function Reflection({ onNavigate }) {
   const handleFinish = () => {
     addCompletedTemplate("reflection")
     saveStudentProgress({ current_screen: "done", reflection_done: true })
-    onNavigate("teacherInput")
+    onNavigate("finalSummary")
   }
 
   if (loading) return <SimpleLoader />
@@ -180,27 +180,20 @@ export default function Reflection({ onNavigate }) {
         </div>
       )}
 
-      {/* ── Finish buttons ─────────────────────────── */}
-      <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
-        <button
-          className="btn-primary"
-          onClick={handleFinish}
-          style={{ flex: 1, padding: "14px" }}
-        >
-          Finish Unit →
-        </button>
-        <button
-          onClick={() => onNavigate("teacherDashboard")}
-          style={{
-            flex: 1, padding: "14px", background: "white",
-            border: "2px solid #1A5276", borderRadius: "8px",
-            color: "#1A5276", fontFamily: "Arial", fontSize: "14px",
-            cursor: "pointer", fontWeight: "bold",
-          }}
-        >
-          View Teacher Report
-        </button>
-      </div>
+      {/* ── Finish button ──────────────────────────── */}
+      <button
+        className="btn-primary"
+        onClick={handleFinish}
+        disabled={answeredCount < Math.min(2, questions.length)}
+        style={{
+          width: "100%", padding: "14px",
+          background: answeredCount >= Math.min(2, questions.length) ? "#E87722" : "#BDC3C7",
+          cursor: answeredCount >= Math.min(2, questions.length) ? "pointer" : "not-allowed",
+          marginTop: "8px",
+        }}
+      >
+        See My Learning Summary →
+      </button>
     </div>
   )
 }

@@ -63,7 +63,7 @@ export default function MasteryGate({ onNavigate }) {
 
   const handleContinue = () => {
     const pct        = masteryTotal > 0 ? masteryScore / masteryTotal : 1
-    const nextScreen = pct >= 0.5 ? "projectPlanning" : "analysis_review"
+    const nextScreen = pct >= 0.5 ? "rac" : "analysis_review"
     addCompletedTemplate("masteryGate")
     saveStudentProgress({
       completed_templates: [

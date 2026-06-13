@@ -8,11 +8,11 @@ import UnitLoader from "./screens/UnitLoader"
 import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
 import NclReview from "./screens/NclReview"
+import FinalSummary from "./screens/FinalSummary"
 import Analysis from "./templates/Analysis"
 import AnalysisReview from "./templates/AnalysisReview"
 import Discussion from "./templates/Discussion"
 import MasteryGate from "./templates/MasteryGate"
-import ProjectPlanning from "./templates/ProjectPlanning"
 import RAC from "./templates/RAC"
 import Reflection from "./templates/Reflection"
 import DevPanel from "./components/DevPanel"
@@ -22,7 +22,7 @@ const TEMPLATE_SCREENS = [
   "provocation", "ncl", "ncl_review",
   "analysis", "analysis_review",
   "discussion", "masteryGate",
-  "projectPlanning", "rac", "reflection",
+  "rac", "reflection",
 ]
 
 function AppContent() {
@@ -98,9 +98,10 @@ function AppContent() {
       case "analysis_review": return <AnalysisReview onNavigate={navigateTo} />
       case "discussion":      return <Discussion onNavigate={navigateTo} />
       case "masteryGate":     return <MasteryGate onNavigate={navigateTo} />
-      case "projectPlanning": return <ProjectPlanning onNavigate={navigateTo} />
+      case "projectPlanning": return <RAC onNavigate={navigateTo} />
       case "rac":             return <RAC onNavigate={navigateTo} />
       case "reflection":      return <Reflection onNavigate={navigateTo} />
+      case "finalSummary":    return <FinalSummary onNavigate={navigateTo} />
       default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }

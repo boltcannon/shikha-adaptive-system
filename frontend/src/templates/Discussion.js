@@ -9,11 +9,8 @@ export default function Discussion({ onNavigate }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Bug 4 — track which perspective index the student chose
   const [selectedPosition, setSelectedPosition] = useState(null)
-  // Reasoning textarea shown only once a position is selected
   const [reasoning, setReasoning] = useState("")
-  // Bug 4 — synthesis textareas, one per prompt
   const [synthesisResponses, setSynthesisResponses] = useState(["", "", ""])
 
   useEffect(() => {
@@ -43,35 +40,38 @@ export default function Discussion({ onNavigate }) {
   const perspectives = data.perspectives || []
   const synthesisPrompts = data.synthesis_prompts || []
 
-  // Fix 1 — synthesis must be filled (≥20 chars each) before continuing
   const canContinue = synthesisPrompts.length === 0 ||
     synthesisPrompts.every((_, i) => (synthesisResponses[i] || "").trim().length >= 20)
 
   return (
     <div>
-      <TemplateHeader template="DISCUSSION" subtitle="Moderator" />
+      <TemplateHeader template="EXPLORE PERSPECTIVES" subtitle="Think from multiple angles" />
 
-      {/* Discussion question */}
+      {/* Central question */}
       <div className="dark-card" style={{ textAlign: "center", marginBottom: "24px" }}>
         <p style={{ fontSize: "11px", letterSpacing: "1px", color: "#E87722", marginBottom: "8px" }}>
-          THE DISCUSSION QUESTION
+          THE CENTRAL QUESTION
         </p>
         <p style={{ fontSize: "18px", color: "white", fontFamily: "Arial", lineHeight: "1.6" }}>
           {data.discussion_question}
         </p>
       </div>
 
-      {/* Why no single answer */}
+      {/* Intro framing */}
       <div className="card" style={{ background: "#FEF9E7", border: "1px solid #F9E79F", marginBottom: "16px" }}>
+        <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#7D6608", marginBottom: "6px" }}>
+          Great thinkers consider many perspectives before forming their own view.
+          Read these 4 different viewpoints on the Central Question — then form your own reasoned position.
+        </p>
         <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#7D6608" }}>
           💡 {data.why_no_single_answer}
         </p>
       </div>
 
-      {/* Bug 4 — Four perspectives in a 2×2 grid (two cards side by side) */}
+      {/* Four perspectives */}
       <h2 className="heading-2" style={{ marginBottom: "6px" }}>Four Perspectives</h2>
       <p style={{ fontFamily: "Arial", fontSize: "12px", color: "#95A5A6", marginBottom: "12px" }}>
-        Tap a perspective to select your position.
+        Which perspective do you find most convincing so far?
       </p>
       <div style={{
         display: "grid",
@@ -122,14 +122,14 @@ export default function Discussion({ onNavigate }) {
         })}
       </div>
 
-      {/* Bug 4 — reasoning textarea appears only after a position is selected */}
+      {/* Reasoning textarea — appears after a perspective is selected */}
       {selectedPosition !== null && (
         <div className="card" style={{ marginBottom: "16px" }}>
           <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "14px", color: "#1A5276", marginBottom: "4px" }}>
-            You chose: {perspectives[selectedPosition]?.name}
+            You find this most convincing: {perspectives[selectedPosition]?.name}
           </p>
           <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#5D6D7E", marginBottom: "10px" }}>
-            Why do you think this? Use evidence from the chapter in your argument.
+            Explain your thinking. What from the chapter supports this view?
           </p>
           <textarea
             value={reasoning}
@@ -145,11 +145,11 @@ export default function Discussion({ onNavigate }) {
         </div>
       )}
 
-      {/* Bug 4 — synthesis prompts with individual textareas */}
+      {/* Synthesis prompts */}
       {synthesisPrompts.length > 0 && (
         <div className="card" style={{ background: "#EBF5FB", marginBottom: "16px" }}>
           <p style={{ fontFamily: "Arial", fontWeight: "bold", fontSize: "13px", color: "#1A5276", marginBottom: "12px" }}>
-            Go deeper — synthesis questions
+            Your Reasoned Position
           </p>
           {synthesisPrompts.map((prompt, i) => {
             const charCount = (synthesisResponses[i] || "").trim().length
@@ -172,7 +172,6 @@ export default function Discussion({ onNavigate }) {
                     resize: "vertical", background: "white"
                   }}
                 />
-                {/* Fix 1 — character counter */}
                 <p style={{
                   fontSize: "11px",
                   color: met ? "#1E8449" : "#BDC3C7",
@@ -188,7 +187,6 @@ export default function Discussion({ onNavigate }) {
         </div>
       )}
 
-      {/* Fix 1 — gated until all synthesis responses meet the 20-char minimum */}
       {!canContinue && (
         <p style={{
           fontSize: "13px",

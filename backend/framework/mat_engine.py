@@ -15,6 +15,7 @@ from .prompts import (
     ANALYSIS_PROMPT,
     PROJECT_GUIDANCE_PROMPT,
     REFLECTION_PROMPT,
+    FINAL_SUMMARY_PROMPT,
     OPEN_ENDED_CHECK_PROMPT,
     SUBTOPICS_PROMPT,
     RAC_SUGGESTIONS_PROMPT,
@@ -342,3 +343,37 @@ async def generate_reflection(
         provocation_reflections = prov_ref_text,
     )
     return await asyncio.to_thread(call_claude, prompt, 1200)
+
+
+async def generate_final_summary(
+    unit_input,
+    exit_ticket_score=None,
+    mastery_gate_result="",
+    strong_subtopics=None,
+    weak_subtopics=None,
+    project_idea="",
+    provocation_observation="",
+    performance={},
+):
+    system_base = build_system_base(unit_input, performance)
+
+    if exit_ticket_score is not None:
+        try:
+            score_text = f"{int(exit_ticket_score)}/5"
+        except (ValueError, TypeError):
+            score_text = str(exit_ticket_score)
+    else:
+        score_text = "Not completed"
+
+    prompt = FINAL_SUMMARY_PROMPT.format(
+        system_base             = system_base,
+        chapter                 = unit_input.chapter,
+        context                 = unit_input.context,
+        exit_ticket_score       = score_text,
+        mastery_gate_result     = mastery_gate_result or "Not completed",
+        strong_subtopics        = ", ".join(strong_subtopics or []) or "Not assessed",
+        weak_subtopics          = ", ".join(weak_subtopics  or []) or "Not assessed",
+        project_idea            = project_idea            or "Not started",
+        provocation_observation = provocation_observation or "Not recorded",
+    )
+    return await asyncio.to_thread(call_claude, prompt, 800)

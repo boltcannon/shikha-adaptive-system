@@ -7,7 +7,6 @@ const TEMPLATES = [
   { key: "analysis",        label: "Analysis",     short: "Anal" },
   { key: "discussion",      label: "Discussion",   short: "Disc" },
   { key: "masteryGate",     label: "Mastery Gate", short: "Gate" },
-  { key: "projectPlanning", label: "Planning",     short: "Plan" },
   { key: "rac",             label: "Research",     short: "RAC"  },
   { key: "reflection",      label: "Reflection",   short: "Refl" },
 ]

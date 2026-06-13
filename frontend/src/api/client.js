@@ -305,5 +305,17 @@ export const api = {
       }
     )
     return r.json()
-  }
+  },
+
+  generateFinalSummary: async (sessionId, data) => {
+    const r = await fetch(
+      `${BASE_URL}/generate/final-summary/${sessionId}`,
+      {
+        method : "POST",
+        headers: { "Content-Type": "application/json" },
+        body   : JSON.stringify(data),
+      }
+    )
+    return r.json()
+  },
 }

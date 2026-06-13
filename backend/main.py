@@ -19,6 +19,7 @@ from framework.mat_engine import (
     generate_analysis,
     generate_context_suggestions,
     generate_discussion,
+    generate_final_summary,
     generate_mastery_question,
     generate_ncl,
     generate_ncl_review,
@@ -1051,3 +1052,21 @@ async def cache_stats():
 async def clear_cache():
     result = cache_collection.delete_many({})
     return {"message": f"Cleared {result.deleted_count} cached units"}
+
+
+@app.post("/generate/final-summary/{session_id}")
+async def get_final_summary(session_id: str, data: dict = Body(default={})):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    result = await generate_final_summary(
+        session["unit_input"],
+        data.get("exit_ticket_score"),
+        data.get("mastery_gate_result", ""),
+        data.get("strong_subtopics", []),
+        data.get("weak_subtopics", []),
+        data.get("project_idea", ""),
+        data.get("provocation_observation", ""),
+        session.get("performance", {}),
+    )
+    return result

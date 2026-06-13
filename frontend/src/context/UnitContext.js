@@ -52,8 +52,26 @@ export function UnitProvider({ children }) {
     }
   })
 
+  const addCompletedTemplate = (template) => {
+    setStudentProgress(prev => {
+      const current = prev?.completed_templates || []
+      if (current.includes(template)) return prev
+      const updated = { ...prev, completed_templates: [...current, template] }
+      localStorage.setItem("studentProgress", JSON.stringify(updated))
+      return updated
+    })
+  }
+
   const saveStudentProgress = async (updates) => {
-    const newProgress = { ...studentProgress, ...updates }
+    // Read from localStorage so addCompletedTemplate changes aren't lost
+    // due to React's batched state updates (stale closure issue)
+    let currentProgress
+    try {
+      currentProgress = JSON.parse(localStorage.getItem("studentProgress") || "{}")
+    } catch {
+      currentProgress = studentProgress
+    }
+    const newProgress = { ...currentProgress, ...updates }
     setStudentProgress(newProgress)
     localStorage.setItem("studentProgress", JSON.stringify(newProgress))
 
@@ -246,6 +264,7 @@ export function UnitProvider({ children }) {
       studentId,   setStudentId,
       studentName, setStudentName,
       studentProgress, setStudentProgress,
+      addCompletedTemplate,
       saveStudentProgress,
       clearStudentSession,
       nclProgress, updateNclProgress, setNclProgress,

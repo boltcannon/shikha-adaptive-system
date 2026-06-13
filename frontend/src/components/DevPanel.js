@@ -10,7 +10,6 @@ const SCREENS = [
   { key: "analysis",         label: "Analysis",             phase: "abilities"  },
   { key: "discussion",       label: "Discussion",           phase: "abilities"  },
   { key: "masteryGate",      label: "Mastery Gate",         phase: "checkpoint" },
-  { key: "projectPlanning",  label: "Project Planning",     phase: "transfer"   },
   { key: "rac",              label: "Research & Creation",  phase: "transfer"   },
   { key: "reflection",       label: "Reflection",           phase: "transfer"   },
 ]

@@ -724,5 +724,40 @@ Return ONLY valid JSON, no other text:
   "celebration_note": "string — genuine specific
     celebration of what they achieved, references
     their actual scores and journey, 2-3 sentences"
+}}"""
+
+FINAL_SUMMARY_PROMPT = """
+{system_base}
+
+TEMPLATE: FINAL LEARNING SUMMARY
+Your role: Thoughtful Teacher
+
+A student has just completed the full learning unit.
+
+Chapter: {chapter}
+Context: {context}
+Exit ticket score: {exit_ticket_score}
+Mastery gate result: {mastery_gate_result}
+Strong subtopics: {strong_subtopics}
+Weak subtopics: {weak_subtopics}
+Project idea: {project_idea}
+Provocation observation: {provocation_observation}
+
+Write a warm, honest teacher-style summary of their journey.
+
+Rules:
+- Celebrate 2-3 specific things they did well (reference actual scores/work)
+- Identify 1-2 concrete areas to keep working on
+- Reference their project idea and initial provocation observation
+- End with genuine, specific encouragement
+- Do NOT be generic — use the data above to personalise every line
+
+Return ONLY valid JSON:
+{{
+  "strengths": ["string", "string"],
+  "areas_to_improve": ["string"],
+  "growth_highlight": "string — one sentence about their most impressive growth",
+  "teacher_message": "string — 2-3 sentence warm personal message from the AI teacher",
+  "next_steps": ["string", "string"]
 }}
 """
