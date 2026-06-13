@@ -18,7 +18,6 @@ export default function TeacherInput({ onNavigate }) {
   const {
     sessionId, setSessionId, setUnitInput,
     setGeneratedContent, setPerformance, clearStudentSession,
-    currentUser,
   } = useUnit()
 
   const [form, setForm] = useState({
@@ -107,13 +106,11 @@ export default function TeacherInput({ onNavigate }) {
     <div>
       <div style={{ marginBottom: "32px" }}>
         <h1 className="heading-1">
-          {currentUser?.role === "teacher" ? "Create a Learning Unit" : "Start Learning"}
+          What would you like to learn today?
         </h1>
         <p className="subtext">
-          {currentUser?.role === "teacher"
-            ? "Select grade, subject and chapter. The AI will generate a complete unit using Shikha's MAT framework."
-            : "Select your grade, subject and chapter. The AI will create a personalised learning unit just for you."
-          }
+          Select your grade, subject and chapter. The AI will create a complete
+          learning unit just for you.
         </p>
       </div>
 
@@ -318,7 +315,7 @@ export default function TeacherInput({ onNavigate }) {
             cursor: !form.chapter ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "Creating unit..." : "Generate Unit with AI →"}
+          {loading ? "Creating unit..." : "Start Learning →"}
         </button>
 
         {sessionId && (

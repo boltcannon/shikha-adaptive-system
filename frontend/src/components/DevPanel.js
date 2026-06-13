@@ -13,8 +13,6 @@ const SCREENS = [
   { key: "projectPlanning",  label: "Project Planning",     phase: "transfer"   },
   { key: "rac",              label: "Research & Creation",  phase: "transfer"   },
   { key: "reflection",       label: "Reflection",           phase: "transfer"   },
-  { key: "teacherDashboard",  label: "Teacher Dashboard",    phase: "teacher"    },
-  { key: "assessmentBuilder", label: "Assessment Builder",   phase: "teacher"    },
 ]
 
 const PHASE_COLORS = {

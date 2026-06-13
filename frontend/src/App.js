@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react"
-import { Routes, Route, useParams } from "react-router-dom"
 import { UnitProvider, useUnit } from "./context/UnitContext"
 import AuthScreen from "./screens/AuthScreen"
 import SimpleLoader from "./components/SimpleLoader"
 import UnitProgress from "./components/UnitProgress"
 import TeacherInput from "./screens/TeacherInput"
 import UnitLoader from "./screens/UnitLoader"
-import StudentJoin from "./screens/StudentJoin"
 import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
 import NclReview from "./screens/NclReview"
@@ -17,12 +15,9 @@ import MasteryGate from "./templates/MasteryGate"
 import ProjectPlanning from "./templates/ProjectPlanning"
 import RAC from "./templates/RAC"
 import Reflection from "./templates/Reflection"
-import TeacherDashboard from "./screens/TeacherDashboard"
-import AssessmentBuilder from "./screens/AssessmentBuilder"
 import DevPanel from "./components/DevPanel"
 import "./App.css"
 
-// Screens that show the unit progress stepper
 const TEMPLATE_SCREENS = [
   "provocation", "ncl", "ncl_review",
   "analysis", "analysis_review",
@@ -30,36 +25,22 @@ const TEMPLATE_SCREENS = [
   "projectPlanning", "rac", "reflection",
 ]
 
-// Handles /join/:classCode URL — renders StudentJoin with the code from URL
-function StudentJoinWrapper({ onNavigate }) {
-  const { classCode } = useParams()
-  return (
-    <StudentJoin
-      onNavigate={onNavigate}
-      initialCode={classCode?.toUpperCase() || ""}
-    />
-  )
-}
-
-// ── Inner app — inside UnitProvider so useUnit() works ──────────
 function AppContent() {
   const {
     sessionId, setSessionId,
     setUnitInput, setGeneratedContent,
-    setPerformance, clearStudentSession,
-    studentName,
+    setStudentProgress, setNclProgress,
     currentUser, authLoading, logout,
     resumeScreen,
   } = useUnit()
 
   const [screen, setScreen] = useState("auth")
 
-  // Scroll to top on every screen transition
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [screen])
 
-  // Keep Render awake — ping every 10 minutes to prevent cold starts
+  // Keep Render awake
   useEffect(() => {
     const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000"
     const wakeUp = () => fetch(`${BASE_URL}/ping`).catch(() => {})
@@ -68,15 +49,11 @@ function AppContent() {
     return () => clearInterval(interval)
   }, [])
 
-  // After auth verification — navigate returning users to their screen,
-  // or send fresh logins (from AuthScreen) to teacherInput as fallback
   useEffect(() => {
     if (!authLoading && currentUser) {
       if (resumeScreen) {
         setScreen(resumeScreen)
       } else if (screen === "auth") {
-        // Fresh login handled by AuthScreen's onNavigate, but guard against
-        // landing stuck on auth if that path was skipped somehow
         setScreen("teacherInput")
       }
     }
@@ -84,34 +61,30 @@ function AppContent() {
 
   const navigateTo = (s) => setScreen(s)
 
-  // Clear session and return to input — resets ALL state
   const handleNewUnit = () => {
     setSessionId(null)
     setUnitInput(null)
     setGeneratedContent(null)
-    setPerformance({ exitTicketScore: null, masteryGateResult: null, projectIdea: "", completedTemplates: [] })
-    clearStudentSession()
+    setNclProgress({ completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" })
+    setStudentProgress({
+      current_screen      : "provocation",
+      completed_templates : [],
+      exit_ticket_score   : null,
+      mastery_gate_result : null,
+      project_idea        : "",
+      reflection_done     : false,
+    })
+    localStorage.removeItem("sessionId")
+    localStorage.removeItem("studentId")
+    localStorage.removeItem("studentProgress")
+    localStorage.removeItem("nclProgress")
     setScreen("teacherInput")
   }
 
   const renderScreen = () => {
     if (authLoading) return <SimpleLoader />
-
-    // Unauthenticated users always see auth (except the /join route, which bypasses renderScreen)
     if (!currentUser && screen !== "auth") {
       return <AuthScreen onNavigate={navigateTo} />
-    }
-
-    // Teacher-only screens — redirect non-teachers to teacherInput
-    if (screen === "assessmentBuilder") {
-      return currentUser?.role === "teacher"
-        ? <AssessmentBuilder onBack={() => navigateTo("teacherDashboard")} />
-        : <TeacherInput onNavigate={navigateTo} />
-    }
-    if (screen === "teacherDashboard") {
-      return currentUser?.role === "teacher"
-        ? <TeacherDashboard onBack={() => navigateTo("teacherInput")} />
-        : <TeacherInput onNavigate={navigateTo} />
     }
 
     switch (screen) {
@@ -132,104 +105,32 @@ function AppContent() {
     }
   }
 
-  const isTeacher = currentUser?.role === "teacher"
-
   return (
     <>
-      {/* ── Top nav bar ───────────────────────────────────── */}
+      {/* ── Nav bar ───────────────────────────────────────── */}
       <div style={{
         background: "#1A5276", padding: "10px 16px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
         position: "sticky", top: 0, zIndex: 100,
         boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
       }}>
-        {/* Brand */}
-        <div style={{ minWidth: 0 }}>
-          <span style={{
-            color: "#E87722", fontWeight: "bold",
-            fontSize: "13px", fontFamily: "Arial", letterSpacing: "1px",
-          }}>
-            SHIKHA
-          </span>
-          {window.innerWidth > 480 && (
-            <span style={{ color: "white", fontSize: "13px", fontFamily: "Arial", marginLeft: "6px" }}>
-              Adaptive Learning
-            </span>
-          )}
-        </div>
+        <span style={{
+          color: "#E87722", fontWeight: "bold",
+          fontSize: "15px", fontFamily: "Arial", letterSpacing: "1px",
+        }}>
+          SHIKHA <span style={{ color: "white", fontWeight: "normal" }}>Academy</span>
+        </span>
 
-        {/* Right-side controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-
-          {/* Student name in guest mode — hide on narrow screens */}
-          {studentName && !currentUser && window.innerWidth > 360 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {currentUser && window.innerWidth > 480 && (
             <span style={{
-              color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Arial",
-              maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial",
+              maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
-              {studentName}
+              {currentUser.name}
             </span>
           )}
 
-          {/* Signed-in user name + sign out */}
-          {currentUser && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              {window.innerWidth > 480 && (
-                <span style={{
-                  color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Arial",
-                  maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>
-                  {currentUser.name}
-                </span>
-              )}
-              <button
-                onClick={() => { logout(); navigateTo("auth") }}
-                style={{
-                  background: "rgba(255,255,255,0.15)", color: "white",
-                  border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                  padding: "6px 10px", cursor: "pointer",
-                  fontFamily: "Arial", fontSize: "12px",
-                  minHeight: "34px", touchAction: "manipulation",
-                }}
-              >
-                {window.innerWidth > 480 ? "Sign Out" : "Out"}
-              </button>
-            </div>
-          )}
-
-          {/* Assessment Builder — teachers only */}
-          {isTeacher && sessionId && (
-            <button
-              onClick={() => navigateTo("assessmentBuilder")}
-              style={{
-                background: "rgba(255,255,255,0.15)", color: "white",
-                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                padding: "6px 10px", cursor: "pointer",
-                fontFamily: "Arial", fontSize: "13px",
-                minHeight: "34px", touchAction: "manipulation",
-              }}
-            >
-              {window.innerWidth > 480 ? "📝 Assessment" : "📝"}
-            </button>
-          )}
-
-          {/* Teacher Dashboard — teachers only */}
-          {isTeacher && sessionId && (
-            <button
-              onClick={() => navigateTo("teacherDashboard")}
-              style={{
-                background: "rgba(255,255,255,0.15)", color: "white",
-                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                padding: "6px 10px", cursor: "pointer",
-                fontFamily: "Arial", fontSize: "13px",
-                minHeight: "34px", touchAction: "manipulation",
-              }}
-            >
-              {window.innerWidth > 480 ? "📊 Dashboard" : "📊"}
-            </button>
-          )}
-
-          {/* New Unit — anyone with a session */}
           {sessionId && (
             <button
               onClick={handleNewUnit}
@@ -244,33 +145,39 @@ function AppContent() {
               {window.innerWidth > 480 ? "← New Unit" : "+ New"}
             </button>
           )}
+
+          {currentUser && (
+            <button
+              onClick={() => { logout(); setScreen("auth") }}
+              style={{
+                background: "rgba(255,255,255,0.15)", color: "white",
+                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                padding: "6px 10px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "12px",
+                minHeight: "34px", touchAction: "manipulation",
+              }}
+            >
+              {window.innerWidth > 480 ? "Sign Out" : "Out"}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Unit progress stepper (template screens only) ─── */}
+      {/* ── Unit progress stepper ─────────────────────────── */}
       {TEMPLATE_SCREENS.includes(screen) && (
         <UnitProgress currentScreen={screen} />
       )}
 
       {/* ── Main content ──────────────────────────────────── */}
       <div className="app-container">
-        <Routes>
-          {/* Backward-compat class code URL — no auth required */}
-          <Route
-            path="/join/:classCode"
-            element={<StudentJoinWrapper onNavigate={navigateTo} />}
-          />
-          <Route path="*" element={renderScreen()} />
-        </Routes>
+        {renderScreen()}
       </div>
 
-      {/* ── Developer panel (dev only) ────────────────────── */}
       <DevPanel onNavigate={navigateTo} />
     </>
   )
 }
 
-// ── Root: UnitProvider wraps AppContent so all hooks work ───────
 export default function App() {
   return (
     <UnitProvider>

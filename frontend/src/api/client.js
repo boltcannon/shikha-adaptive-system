@@ -88,15 +88,6 @@ export const api = {
     return r.json()
   },
 
-  // Alias used by Assessment Builder — same endpoint, semantic name
-  getMasteryQuestions: async (sessionId) => {
-    const r = await fetch(
-      `${BASE_URL}/generate/mastery-all/${sessionId}`,
-      { method: "POST" }
-    )
-    return r.json()
-  },
-
   generateMasteryQuestion: async (sessionId, subtopic, dimension, level) => {
     const r = await fetch(
       `${BASE_URL}/generate/mastery-question/${sessionId}` +
@@ -161,58 +152,11 @@ export const api = {
     return r.json()
   },
 
-  // ── Class + student management ──────────────────────────
-  createClass: async (sessionId) => {
-    const r = await fetch(`${BASE_URL}/class/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId })
-    })
-    return r.json()
-  },
-
-  getClass: async (classCode) => {
-    const r = await fetch(`${BASE_URL}/class/${classCode}`)
-    return r.json()
-  },
-
-  joinClass: async (classCode, name) => {
-    const r = await fetch(`${BASE_URL}/class/${classCode}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name })
-    })
-    return r.json()
-  },
-
   saveProgress: async (studentId, progress) => {
     const r = await fetch(`${BASE_URL}/student/progress`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ student_id: studentId, progress })
-    })
-    return r.json()
-  },
-
-  getClassResults: async (classCode) => {
-    const r = await fetch(`${BASE_URL}/class/${classCode}/results`)
-    return r.json()
-  },
-
-  updateContent: async (classCode, template, content) => {
-    const r = await fetch(`${BASE_URL}/class/${classCode}/content`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ template, content })
-    })
-    return r.json()
-  },
-
-  regenerateTemplate: async (classCode, template) => {
-    const r = await fetch(`${BASE_URL}/class/${classCode}/regenerate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ template })
     })
     return r.json()
   },
@@ -270,13 +214,6 @@ export const api = {
 
   getStudentProgress: async (studentId) => {
     const r = await fetch(`${BASE_URL}/student/${studentId}/progress`)
-    return r.json()
-  },
-
-  getTeacherClasses: async (token) => {
-    const r = await fetch(`${BASE_URL}/teacher/classes`, {
-      headers: { "Authorization": `Bearer ${token}` }
-    })
     return r.json()
   },
 

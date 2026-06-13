@@ -1,116 +1,103 @@
 import React from "react"
 import { useUnit } from "../context/UnitContext"
-import TemplateHeader from "../components/TemplateHeader"
 
 export default function AnalysisReview({ onNavigate }) {
-  const { generatedContent, performance } = useUnit()
+  const { saveStudentProgress, studentProgress } = useUnit()
 
-  const analysisData = generatedContent?.analysis
-  const result = performance?.masteryGateResult || "—"
+  const masteryResult = studentProgress?.mastery_gate_result || ""
+  const weakSubtopics = studentProgress?.mastery_weak_subtopics || []
 
   return (
     <div>
-      <TemplateHeader template="MASTERY REVIEW" subtitle="Revisit the Concepts" />
-
-      {/* Score callout */}
       <div style={{
-        background   : "#FADBD8",
-        border       : "2px solid #C0392B",
+        background   : "#FEF9E7",
+        border       : "2px solid #B7950B",
         borderRadius : "12px",
-        padding      : "16px",
+        padding      : "24px",
         marginBottom : "20px",
         textAlign    : "center",
       }}>
-        <p style={{
-          fontSize    : "28px",
+        <p style={{ fontSize: "40px", marginBottom: "12px" }}>🎯</p>
+        <h2 style={{
+          fontSize    : "20px",
           fontWeight  : "bold",
-          color       : "#C0392B",
+          color       : "#B7950B",
           fontFamily  : "Arial",
-          marginBottom: "6px",
+          marginBottom: "8px",
         }}>
-          Mastery Gate: {result}
-        </p>
-        <p style={{ fontSize: "14px", color: "#922B21", fontFamily: "Arial" }}>
-          The mastery gate shows some gaps. Let's revisit the key concepts before your project.
+          Let's Strengthen Your Understanding
+        </h2>
+        <p style={{
+          fontSize  : "14px",
+          color     : "#2C3E50",
+          fontFamily: "Arial",
+          lineHeight: "1.6",
+        }}>
+          Your mastery gate result: {masteryResult}
         </p>
       </div>
 
-      {/* Analysis content review */}
-      {analysisData ? (
-        <div className="card" style={{ marginBottom: "12px" }}>
+      {weakSubtopics.length > 0 && (
+        <div className="card" style={{ marginBottom: "16px" }}>
           <p style={{
-            fontSize      : "12px",
-            fontWeight    : "bold",
-            color         : "#1A5276",
-            fontFamily    : "Arial",
-            marginBottom  : "8px",
-            textTransform : "uppercase",
-            letterSpacing : "0.5px",
+            fontWeight  : "bold",
+            fontSize    : "13px",
+            color       : "#1A5276",
+            fontFamily  : "Arial",
+            marginBottom: "10px",
           }}>
-            Class Model — What We Discovered
+            Topics to review:
           </p>
-          <p style={{
-            fontSize   : "14px",
-            color      : "#2C3E50",
-            fontFamily : "Arial",
-            lineHeight : "1.7",
-            marginBottom: "12px",
-          }}>
-            {analysisData.class_model}
-          </p>
-
-          {analysisData.reflection_prompts && analysisData.reflection_prompts.length > 0 && (
-            <div>
-              <p style={{
-                fontSize     : "12px",
-                fontWeight   : "bold",
-                color        : "#E87722",
-                fontFamily   : "Arial",
-                marginBottom : "6px",
-              }}>
-                Think about:
-              </p>
-              {analysisData.reflection_prompts.slice(0, 2).map((prompt, i) => (
-                <p key={i} style={{
-                  fontSize   : "13px",
-                  color      : "#5D6D7E",
-                  fontFamily : "Arial",
-                  marginBottom: "4px",
-                }}>
-                  {i + 1}. {prompt}
-                </p>
-              ))}
+          {weakSubtopics.map(st => (
+            <div key={st} style={{
+              display     : "flex",
+              alignItems  : "center",
+              gap         : "8px",
+              marginBottom: "6px",
+            }}>
+              <span style={{ color: "#E87722" }}>→</span>
+              <span style={{ fontSize: "14px", color: "#2C3E50", fontFamily: "Arial" }}>
+                {st.replace(/_/g, " ")}
+              </span>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="card" style={{ marginBottom: "12px" }}>
-          <p style={{ fontFamily: "Arial", color: "#5D6D7E", fontSize: "14px" }}>
-            Talk to your teacher to review the key concepts from this chapter before starting your project.
-          </p>
+          ))}
         </div>
       )}
 
-      {/* Encouragement */}
-      <div style={{
-        background   : "#EBF5FB",
-        borderRadius : "10px",
-        padding      : "14px",
-        marginBottom : "16px",
-      }}>
-        <p style={{ fontSize: "13px", color: "#1A5276", fontFamily: "Arial" }}>
-          💡 <strong>Remember:</strong> Your project is still an opportunity to show what you know.
-          Use your notes and what you've learned to create something great.
+      <div className="card" style={{ marginBottom: "24px" }}>
+        <p style={{
+          fontSize  : "14px",
+          color     : "#5D6D7E",
+          fontFamily: "Arial",
+          lineHeight: "1.6",
+        }}>
+          Going through the Analysis again with a fresh perspective will help strengthen
+          your understanding before starting your project. You can do this!
         </p>
       </div>
 
-      <button
-        className="btn-primary"
-        onClick={() => onNavigate("projectPlanning")}
-        style={{ width: "100%", padding: "14px" }}
-      >
-        Continue to Project Planning →
-      </button>
+      <div style={{ display: "flex", gap: "10px" }}>
+        <button
+          onClick={() => {
+            saveStudentProgress({ current_screen: "analysis" })
+            onNavigate("analysis")
+          }}
+          className="btn-primary"
+          style={{ flex: 1, padding: "14px" }}
+        >
+          Practice Analysis Again →
+        </button>
+        <button
+          onClick={() => {
+            saveStudentProgress({ current_screen: "projectPlanning" })
+            onNavigate("projectPlanning")
+          }}
+          className="btn-secondary"
+          style={{ flex: 1, padding: "14px" }}
+        >
+          Continue to Project
+        </button>
+      </div>
     </div>
   )
 }

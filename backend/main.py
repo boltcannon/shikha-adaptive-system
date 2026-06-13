@@ -1,9 +1,8 @@
-import asyncio
+﻿import asyncio
 import datetime
 import hashlib
 import os
 import random
-import string
 import uuid
 
 from dotenv import load_dotenv
@@ -33,10 +32,10 @@ from framework.mat_engine import (
 )
 from models import AnswerInput, LoginRequest, ProjectMessage, RegisterRequest, UnitInput
 
-# ── Environment ───────────────────────────────────────────
+# â”€â”€ Environment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 load_dotenv()
 
-# ── MongoDB ───────────────────────────────────────────────
+# â”€â”€ MongoDB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 
 # Use TLS only for Atlas (cloud) connections; local MongoDB does not need it
@@ -66,12 +65,11 @@ else:
 db = mongo_client["shikha_framework"]
 cache_collection    = db["unit_cache"]
 sessions_collection = db["sessions"]
-classes_collection  = db["classes"]
 students_collection = db["students"]
 progress_collection = db["progress"]
 users_collection    = db["users"]
 
-# ── FastAPI app ───────────────────────────────────────────
+# â”€â”€ FastAPI app â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app = FastAPI(
     title="Shikha Adaptive Learning Framework",
     description="AI-powered unit generation using MAT framework",
@@ -91,15 +89,15 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# ── In-memory session store ───────────────────────────────
+# â”€â”€ In-memory session store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 sessions = {}
 
-# ── Per-session generated-content cache (avoids repeat Claude calls) ──
-_rac_cache:          dict = {}   # session_id → rac suggestions result
-_context_cache:      dict = {}   # "grade|subject|chapter" → context list
+# â”€â”€ Per-session generated-content cache (avoids repeat Claude calls) â”€â”€
+_rac_cache:          dict = {}   # session_id â†’ rac suggestions result
+_context_cache:      dict = {}   # "grade|subject|chapter" â†’ context list
 
 
-# ── Explicit OPTIONS preflight handler ────────────────────
+# â”€â”€ Explicit OPTIONS preflight handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.options("/{rest_of_path:path}")
 async def preflight_handler(rest_of_path: str, request: Request):
     return JSONResponse(
@@ -113,13 +111,7 @@ async def preflight_handler(rest_of_path: str, request: Request):
     )
 
 
-# ── Helpers ───────────────────────────────────────────────
-def generate_class_code() -> str:
-    letters = random.choices(string.ascii_uppercase, k=3)
-    digits  = random.choices(string.digits, k=3)
-    return f"{''.join(letters)}-{''.join(digits)}"
-
-
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _unit_input_dict(unit_input) -> dict:
     """Serialize a UnitInput Pydantic model to a plain dict (supports v1 and v2)."""
     try:
@@ -136,7 +128,7 @@ def make_cache_key(unit_input: UnitInput) -> str:
     return hashlib.md5(raw.lower().encode()).hexdigest()
 
 
-# ── Session persistence helpers ───────────────────────────
+# â”€â”€ Session persistence helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def save_session_to_db(session_id: str, session_data: dict):
     """Persist session to MongoDB so it survives server restarts."""
     try:
@@ -198,7 +190,7 @@ def _get_session(session_id: str) -> dict:
     return session
 
 
-# ── Auth helpers ───────────────────────────────────────────
+# â”€â”€ Auth helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 security = HTTPBearer(auto_error=False)
 
 
@@ -219,7 +211,7 @@ def get_current_user(
             return user
     except Exception as e:
         print(f"[WARN] DB error in get_current_user: {e}")
-    # DB unavailable — reconstruct minimal user from token
+    # DB unavailable â€” reconstruct minimal user from token
     return {
         "user_id": payload.get("user_id"),
         "email"  : payload.get("email"),
@@ -228,9 +220,9 @@ def get_current_user(
     }
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Health check
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.get("/")
 def health():
     return {
@@ -245,9 +237,9 @@ def ping():
     return {"status": "alive", "timestamp": datetime.datetime.now().isoformat()}
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Auth endpoints
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/auth/register")
 async def register(request: RegisterRequest):
     try:
@@ -272,7 +264,7 @@ async def register(request: RegisterRequest):
         users_collection.insert_one(user)
     except Exception as e:
         print(f"[WARN] Could not save user to DB: {e}")
-        # Continue — return token so the session works even without persistence
+        # Continue â€” return token so the session works even without persistence
 
     token = create_token({
         "user_id": user_id,
@@ -322,9 +314,9 @@ async def get_me(current_user=Depends(get_current_user)):
     return current_user
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Unit creation
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/unit/create")
 async def create_unit(
     unit_input: UnitInput,
@@ -344,9 +336,9 @@ async def create_unit(
     return {"session_id": session_id, "message": "Unit created successfully"}
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Generate ALL templates at once (with MongoDB cache)
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/unit/generate-all/{session_id}")
 async def generate_all_templates(session_id: str):
     session    = _get_session(session_id)
@@ -356,7 +348,7 @@ async def generate_all_templates(session_id: str):
     def _safe(r):
         return r if not isinstance(r, Exception) else None
 
-    # ── Cache HIT ─────────────────────────────────────────
+    # â”€â”€ Cache HIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     cached = None
     try:
         cached = cache_collection.find_one({"cache_key": cache_key})
@@ -368,20 +360,20 @@ async def generate_all_templates(session_id: str):
         has_ncl      = bool(content.get("ncl"))
         has_subtopics = bool(content.get("subtopics", {}).get("subtopics"))
 
-        # ── Outdated cache format (pre-dates subtopics/ncl structure) ──
+        # â”€â”€ Outdated cache format (pre-dates subtopics/ncl structure) â”€â”€
         # Delete and fall through to full regeneration
         if not has_ncl and not has_subtopics:
-            print(f"Cache HIT but outdated format — invalidating {cache_key}")
+            print(f"Cache HIT but outdated format â€” invalidating {cache_key}")
             try:
                 cache_collection.delete_one({"cache_key": cache_key})
             except Exception:
                 pass
             cached = None
 
-        # ── Partial cache: has subtopics but NCL was not yet generated ──
+        # â”€â”€ Partial cache: has subtopics but NCL was not yet generated â”€â”€
         # Backfill NCL in-place and update the cache entry
         elif not has_ncl and has_subtopics:
-            print(f"Cache HIT but NCL missing — backfilling for {cache_key}")
+            print(f"Cache HIT but NCL missing â€” backfilling for {cache_key}")
             subs      = content["subtopics"]["subtopics"]
             ncl_tasks = await asyncio.gather(
                 *[
@@ -405,7 +397,7 @@ async def generate_all_templates(session_id: str):
             except Exception as e:
                 print(f"Cache NCL update failed: {e}")
 
-        # ── Good cache hit ─────────────────────────────────────────────
+        # â”€â”€ Good cache hit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if cached is not None:
             print(f"Cache HIT  : {cache_key}")
             try:
@@ -417,32 +409,13 @@ async def generate_all_templates(session_id: str):
                 pass
             session["generated_content"] = content
             save_session_to_db(session_id, session)
-            # Auto-create class code so teacher can share the join link immediately
-            try:
-                if not classes_collection.find_one({"session_id": session_id}):
-                    _code = generate_class_code()
-                    while classes_collection.find_one({"class_code": _code}):
-                        _code = generate_class_code()
-                    classes_collection.insert_one({
-                        "session_id"       : session_id,
-                        "class_code"       : _code,
-                        "unit_input"       : _unit_input_dict(session["unit_input"]),
-                        "generated_content": content,
-                        "created_at"       : datetime.datetime.utcnow(),
-                        "students"         : [],
-                        "status"           : "active",
-                        "teacher_id"       : session.get("teacher_id"),
-                    })
-                    print(f"Auto-created class: {_code}")
-            except Exception as _e:
-                print(f"[WARN] Could not auto-create class: {_e}")
             return {
                 "source": "cache",
                 "message": "Loaded from cache instantly",
                 "content": content,
             }
 
-    # ── Cache MISS — generate in parallel ─────────────────
+    # â”€â”€ Cache MISS â€” generate in parallel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     print(f"Cache MISS : {cache_key} - generating...")
 
     # Step 1: base content + subtopics in parallel
@@ -501,7 +474,7 @@ async def generate_all_templates(session_id: str):
         "ncl":         ncl_content,
     }
 
-    # ── Persist to MongoDB (best-effort — don't crash if DB is down) ─
+    # â”€â”€ Persist to MongoDB (best-effort â€” don't crash if DB is down) â”€
     try:
         cache_collection.insert_one({
             "cache_key":  cache_key,
@@ -519,25 +492,6 @@ async def generate_all_templates(session_id: str):
 
     session["generated_content"] = content
     save_session_to_db(session_id, session)
-    # Auto-create class code so teacher can share the join link immediately
-    try:
-        if not classes_collection.find_one({"session_id": session_id}):
-            _code = generate_class_code()
-            while classes_collection.find_one({"class_code": _code}):
-                _code = generate_class_code()
-            classes_collection.insert_one({
-                "session_id"       : session_id,
-                "class_code"       : _code,
-                "unit_input"       : _unit_input_dict(session["unit_input"]),
-                "generated_content": content,
-                "created_at"       : datetime.datetime.utcnow(),
-                "students"         : [],
-                "status"           : "active",
-                "teacher_id"       : session.get("teacher_id"),
-            })
-            print(f"Auto-created class: {_code}")
-    except Exception as _e:
-        print(f"[WARN] Could not auto-create class: {_e}")
     return {
         "source":  "generated",
         "message": "Unit generated and cached",
@@ -545,9 +499,9 @@ async def generate_all_templates(session_id: str):
     }
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Template endpoints  (cache-aware)
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/generate/provocation/{session_id}")
 async def get_provocation(session_id: str):
     session = _get_session(session_id)
@@ -564,7 +518,7 @@ async def get_ncl(session_id: str, subtopic: str, data: dict = Body(default={}))
     session             = _get_session(session_id)
     student_observation = data.get("student_observation", "")
     student_reflection  = data.get("student_reflection",  "")
-    # NCL is subtopic-specific — always generate fresh
+    # NCL is subtopic-specific â€” always generate fresh
     return await generate_ncl(
         session["unit_input"], subtopic, session["performance"],
         student_observation, student_reflection,
@@ -778,7 +732,7 @@ async def generate_all_mastery_questions(session_id: str):
     unit_input = session["unit_input"]
     cache_key  = make_cache_key(unit_input) + "_mastery"
 
-    # ── Cache HIT ─────────────────────────────────────────
+    # â”€â”€ Cache HIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     cached = None
     try:
         cached = cache_collection.find_one({"cache_key": cache_key})
@@ -790,15 +744,15 @@ async def generate_all_mastery_questions(session_id: str):
         session["mastery_questions"] = cached["questions"]
         return {"source": "cache", "questions": cached["questions"]}
 
-    # ── Resolve subtopics dynamically from session ────────────
+    # â”€â”€ Resolve subtopics dynamically from session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     subtopics_data = session.get("generated_content", {}).get("subtopics")
     if subtopics_data and subtopics_data.get("subtopics"):
         raw = subtopics_data["subtopics"]
-        subtopic_labels = [st["label"] for st in raw]   # human-readable → passed to Claude
-        subtopic_keys   = [st["key"]   for st in raw]   # snake_case    → used as dict key
+        subtopic_labels = [st["label"] for st in raw]   # human-readable â†’ passed to Claude
+        subtopic_keys   = [st["key"]   for st in raw]   # snake_case    â†’ used as dict key
     else:
         # Fallback: generate subtopics on the fly
-        print(f"[mastery-all] No cached subtopics — generating now...")
+        print(f"[mastery-all] No cached subtopics â€” generating now...")
         try:
             sub_result = await generate_subtopics(unit_input, session.get("performance", {}))
             raw = sub_result.get("subtopics", [])
@@ -817,7 +771,7 @@ async def generate_all_mastery_questions(session_id: str):
 
     print(f"[mastery-all] Using subtopics: {subtopic_labels}")
 
-    # ── Generate 4 questions per subtopic in parallel ─────
+    # â”€â”€ Generate 4 questions per subtopic in parallel â”€â”€â”€â”€â”€
     tasks = []
     for label in subtopic_labels:
         tasks.append(generate_mastery_question(unit_input, label, "knowledge", "easy",   session["performance"]))
@@ -839,12 +793,12 @@ async def generate_all_mastery_questions(session_id: str):
         }
         idx += 4
 
-    # Log any failures (no emoji — Windows cp1252 safe)
+    # Log any failures (no emoji â€” Windows cp1252 safe)
     for i, r in enumerate(results):
         if isinstance(r, Exception):
             print(f"  [WARN] mastery result[{i}] failed: {r}")
 
-    # ── Cache (best-effort) ───────────────────────────────
+    # â”€â”€ Cache (best-effort) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         cache_collection.insert_one({
             "cache_key":  cache_key,
@@ -989,9 +943,9 @@ async def get_context_suggestions(data: dict = Body(default={})):
         return {"contexts": _DEFAULT_CONTEXTS}
 
 
-# ──────────────────────────────────────────────────────────
-# RAC — Research and Artifact Creation
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# RAC â€” Research and Artifact Creation
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/generate/rac-suggestions/{session_id}")
 async def get_rac_suggestions(session_id: str):
@@ -999,7 +953,7 @@ async def get_rac_suggestions(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # In-memory cache — repeat calls within the same server process are instant
+    # In-memory cache â€” repeat calls within the same server process are instant
     if session_id in _rac_cache:
         return _rac_cache[session_id]
 
@@ -1076,9 +1030,9 @@ async def save_rac_artifact(session_id: str, data: dict):
     return {"saved": True, "artifact": data}
 
 
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Cache management
-# ──────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.get("/cache/stats")
 async def cache_stats():
     total = cache_collection.count_documents({})
@@ -1097,364 +1051,3 @@ async def cache_stats():
 async def clear_cache():
     result = cache_collection.delete_many({})
     return {"message": f"Cleared {result.deleted_count} cached units"}
-
-
-# ──────────────────────────────────────────────────────────
-# Class management
-# ──────────────────────────────────────────────────────────
-
-@app.post("/class/create")
-async def create_class(data: dict):
-    """Teacher creates a class; students join with the returned code."""
-    session_id = data.get("session_id")
-    print(f"[class/create] session_id={session_id}")
-
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id is required. Please generate a unit first.")
-
-    # Return existing class record for this session if one already exists
-    # (checked before the session-in-memory guard so it works after a server restart)
-    existing = classes_collection.find_one({"session_id": session_id})
-    if existing:
-        print(f"[class/create] returning existing class: {existing['class_code']}")
-        existing.pop("_id", None)
-        return {
-            "class_code"    : existing["class_code"],
-            "session_id"    : session_id,
-            "shareable_link": f"/join/{existing['class_code']}",
-            "unit_input"    : existing["unit_input"],
-        }
-
-    # Session must be available (memory or MongoDB) to create a new class record
-    session = get_session(session_id)
-    if not session:
-        print(f"[class/create] session not found in memory or MongoDB")
-        raise HTTPException(
-            status_code=404,
-            detail="Session expired. Please generate the unit again to create a class."
-        )
-    print(f"[class/create] session found, creating new class record")
-
-    # Generate a unique class code
-    class_code = generate_class_code()
-    while classes_collection.find_one({"class_code": class_code}):
-        class_code = generate_class_code()
-
-    unit_dict = _unit_input_dict(session["unit_input"])
-    class_record = {
-        "session_id"       : session_id,
-        "class_code"       : class_code,
-        "unit_input"       : unit_dict,
-        "generated_content": session.get("generated_content", {}),
-        "created_at"       : datetime.datetime.utcnow(),
-        "students"         : [],
-        "status"           : "active",
-        "teacher_id"       : session.get("teacher_id"),
-    }
-    classes_collection.insert_one(class_record)
-    print(f"[class/create] created class: {class_code}")
-
-    return {
-        "class_code"    : class_code,
-        "session_id"    : session_id,
-        "shareable_link": f"/join/{class_code}",
-        "unit_input"    : unit_dict,
-    }
-
-
-@app.get("/class/{class_code}")
-async def get_class(class_code: str):
-    """Student looks up a class by code before entering their name."""
-    record = classes_collection.find_one({"class_code": class_code.upper()})
-    if not record:
-        raise HTTPException(status_code=404, detail="Class not found. Check your code.")
-    return {
-        "class_code": record["class_code"],
-        "unit_input": record["unit_input"],
-        "session_id": record["session_id"],
-    }
-
-
-@app.post("/class/{class_code}/join")
-async def join_class(class_code: str, data: dict):
-    """Student joins with their name. Restores progress for returning students."""
-    student_name = data.get("name", "").strip()
-    if not student_name:
-        raise HTTPException(status_code=400, detail="Name is required")
-
-    record = classes_collection.find_one({"class_code": class_code.upper()})
-    if not record:
-        raise HTTPException(status_code=404, detail="Class not found")
-
-    session_id = record["session_id"]
-
-    # Restore session in memory if it was lost (e.g. server restart)
-    if session_id not in sessions:
-        if not restore_session_from_db(session_id):
-            # Fall back to class record (for sessions pre-dating DB persistence)
-            ui = record["unit_input"]
-            sessions[session_id] = {
-                "unit_input"       : UnitInput(**ui),
-                "performance"      : {},
-                "generated_content": record.get("generated_content", {}),
-            }
-
-    # Returning student — restore progress
-    existing = students_collection.find_one({
-        "class_code"  : class_code.upper(),
-        "student_name": student_name,
-    })
-    if existing:
-        existing.pop("_id", None)
-        return {
-            "student_id"  : existing["student_id"],
-            "student_name": student_name,
-            "session_id"  : session_id,
-            "progress"    : existing.get("progress", {}),
-            "returning"   : True,
-        }
-
-    # New student
-    student_id = str(uuid.uuid4())
-    default_progress = {
-        "current_screen"      : "provocation",
-        "completed_templates" : [],
-        "exit_ticket_score"   : None,
-        "mastery_gate_result" : None,
-        "project_idea"        : "",
-        "reflection_done"     : False,
-    }
-    students_collection.insert_one({
-        "student_id"  : student_id,
-        "student_name": student_name,
-        "class_code"  : class_code.upper(),
-        "session_id"  : session_id,
-        "progress"    : default_progress,
-        "joined_at"   : datetime.datetime.utcnow(),
-    })
-    return {
-        "student_id"  : student_id,
-        "student_name": student_name,
-        "session_id"  : session_id,
-        "progress"    : default_progress,
-        "returning"   : False,
-    }
-
-
-@app.post("/student/progress")
-async def save_progress(data: dict):
-    """Save student progress after each completed template."""
-    student_id = data.get("student_id")
-    progress   = data.get("progress", {})
-
-    if not student_id:
-        return {"saved": False, "error": "No student_id"}
-
-    students_collection.update_one(
-        {"student_id": student_id},
-        {"$set": {"progress": progress, "updated_at": datetime.datetime.utcnow()}},
-        upsert=True,
-    )
-    return {"saved": True}
-
-
-@app.get("/student/{student_id}/progress")
-async def get_student_progress(student_id: str):
-    student = students_collection.find_one(
-        {"student_id": student_id}, {"_id": 0}
-    )
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
-    return student
-
-
-@app.get("/class/{class_code}/results")
-async def get_class_results(class_code: str):
-    """Teacher fetches all student progress for a class, with rich summary stats."""
-    try:
-        students = list(students_collection.find(
-            {"class_code": class_code.upper()},
-            {"_id": 0}
-        ))
-    except Exception:
-        students = []
-
-    total       = len(students)
-    complete    = sum(1 for s in students
-                      if s.get("progress", {}).get("reflection_done"))
-    in_progress = sum(1 for s in students
-                      if len(s.get("progress", {}).get("completed_templates", [])) > 0
-                      and not s.get("progress", {}).get("reflection_done"))
-    not_started = total - complete - in_progress
-
-    # Parse "X/Y" exit_ticket_score strings to integers for frontend comparisons
-    def _parse_exit(val):
-        if val is None:
-            return None
-        try:
-            if isinstance(val, (int, float)):
-                return int(val)
-            parts = str(val).split("/")
-            return int(parts[0]) if len(parts) >= 1 else None
-        except (ValueError, TypeError):
-            return None
-
-    # Build normalised student list (exit_ticket_score as int, rest unchanged)
-    processed_students = []
-    raw_scores = []
-    for s in students:
-        student_data = dict(s)
-        p = dict(student_data.get("progress", {}))
-        numeric = _parse_exit(p.get("exit_ticket_score"))
-        if numeric is not None:
-            p["exit_ticket_score"] = numeric
-            raw_scores.append(numeric)
-        student_data["progress"] = p
-        processed_students.append(student_data)
-
-    avg_score = round(sum(raw_scores) / len(raw_scores), 1) if raw_scores else None
-
-    score_distribution = {
-        "green": sum(1 for sc in raw_scores if sc >= 4),
-        "amber": sum(1 for sc in raw_scores if 2 <= sc < 4),
-        "red"  : sum(1 for sc in raw_scores if sc < 2),
-    }
-
-    # Template completion counts across the class
-    templates = [
-        "provocation", "ncl", "analysis", "discussion",
-        "masteryGate", "projectPlanning", "rac", "reflection",
-    ]
-    template_counts = {
-        t: sum(
-            1 for s in students
-            if t in s.get("progress", {}).get("completed_templates", [])
-        )
-        for t in templates
-    }
-
-    return {
-        "class_code"        : class_code.upper(),
-        "total_students"    : total,
-        "complete"          : complete,
-        "in_progress"       : in_progress,
-        "not_started"       : not_started,
-        "avg_exit_score"    : avg_score,
-        "score_distribution": score_distribution,
-        "template_counts"   : template_counts,
-        "students"          : processed_students,
-    }
-
-
-@app.get("/teacher/classes")
-async def get_teacher_classes(current_user=Depends(get_current_user)):
-    """Return all classes created by the authenticated teacher, with student counts."""
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-
-    teacher_id = current_user["user_id"]
-    classes = list(classes_collection.find(
-        {"teacher_id": teacher_id},
-        {"_id": 0, "class_code": 1, "unit_input": 1, "created_at": 1, "status": 1},
-    ))
-
-    for c in classes:
-        code = c["class_code"]
-        c["student_count"] = students_collection.count_documents({"class_code": code})
-
-        # Avg exit score for this class
-        stud_list = list(students_collection.find(
-            {"class_code": code}, {"progress.exit_ticket_score": 1, "_id": 0}
-        ))
-        exit_scores = []
-        for s in stud_list:
-            score_str = s.get("progress", {}).get("exit_ticket_score")
-            if score_str:
-                try:
-                    parts = str(score_str).split("/")
-                    if len(parts) == 2:
-                        exit_scores.append(int(parts[0]) / int(parts[1]))
-                except (ValueError, ZeroDivisionError):
-                    pass
-        c["avg_exit_score"] = round(sum(exit_scores) / len(exit_scores) * 100) if exit_scores else None
-
-        # Serialize datetime so JSON doesn't choke
-        if "created_at" in c and c["created_at"] is not None:
-            c["created_at"] = c["created_at"].isoformat()
-
-    return {"classes": classes}
-
-
-@app.put("/class/{class_code}/content")
-async def update_content(class_code: str, data: dict):
-    """Teacher edits AI-generated content before students see it."""
-    record = classes_collection.find_one({"class_code": class_code.upper()})
-    if not record:
-        raise HTTPException(status_code=404, detail="Class not found")
-
-    template    = data.get("template")
-    new_content = data.get("content")
-
-    classes_collection.update_one(
-        {"class_code": class_code.upper()},
-        {"$set": {f"generated_content.{template}": new_content}},
-    )
-
-    # Sync in-memory session
-    session_id = record["session_id"]
-    session    = get_session(session_id)
-    if session:
-        session.setdefault("generated_content", {})[template] = new_content
-        save_session_to_db(session_id, session)
-
-    return {"updated": True, "template": template}
-
-
-# ──────────────────────────────────────────────────────────
-# Part 3 — Regenerate a single template for a class
-# ──────────────────────────────────────────────────────────
-
-@app.post("/class/{class_code}/regenerate")
-async def regenerate_template(class_code: str, data: dict):
-    """Regenerate a single AI template for a class (teacher-triggered)."""
-    template = data.get("template")
-    if not template:
-        raise HTTPException(status_code=400, detail="template is required")
-
-    class_record = classes_collection.find_one({"class_code": class_code.upper()})
-    if not class_record:
-        raise HTTPException(status_code=404, detail="Class not found")
-
-    session_id = class_record["session_id"]
-    session    = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session expired. Cannot regenerate.")
-
-    unit_input  = session["unit_input"]
-    performance = session.get("performance", {})
-
-    # Dispatch to the correct generator
-    new_content = None
-    if template == "provocation":
-        new_content = await generate_provocation(unit_input, performance)
-    elif template == "analysis":
-        new_content = await generate_analysis(unit_input, performance)
-    elif template == "discussion":
-        new_content = await generate_discussion(unit_input, performance)
-    elif template == "reflection":
-        new_content = await generate_reflection(unit_input, "", "", "", "", performance)
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown template: {template}")
-
-    # Persist to class record in MongoDB
-    classes_collection.update_one(
-        {"class_code": class_code.upper()},
-        {"$set": {f"generated_content.{template}": new_content}},
-    )
-
-    # Sync in-memory session and persist session
-    session.setdefault("generated_content", {})[template] = new_content
-    save_session_to_db(session_id, session)
-
-    print(f"[regenerate] {class_code} / {template} regenerated")
-    return {"template": template, "new_content": new_content}

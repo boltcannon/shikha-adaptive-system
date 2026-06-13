@@ -6,7 +6,6 @@ export default function AuthScreen({ onNavigate }) {
   const { login } = useUnit()
 
   const [tab,     setTab]     = useState("login")
-  const [role,    setRole]    = useState("teacher")
   const [form,    setForm]    = useState({ name: "", email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState("")
@@ -44,7 +43,7 @@ export default function AuthScreen({ onNavigate }) {
     try {
       const result = tab === "login"
         ? await api.login(form.email, form.password)
-        : await api.register(form.name, form.email, form.password, role)
+        : await api.register(form.name, form.email, form.password, "student")
 
       if (result.token) {
         login(
@@ -150,32 +149,6 @@ export default function AuthScreen({ onNavigate }) {
       </div>
 
       <div className="card">
-        {/* Role selector — register only */}
-        {tab === "register" && (
-          <div style={{ marginBottom: "16px" }}>
-            <label style={labelStyle}>I am a</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              {["teacher", "student"].map(r => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  style={{
-                    flex: 1, padding: "12px",
-                    background: role === r ? "#1A5276" : "white",
-                    color: role === r ? "white" : "#2C3E50",
-                    border: `2px solid ${role === r ? "#1A5276" : "#BDC3C7"}`,
-                    borderRadius: "8px", cursor: "pointer",
-                    fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {r === "teacher" ? "Teacher" : "Student"}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Name — register only */}
         {tab === "register" && (
           <div style={{ marginBottom: "12px" }}>
