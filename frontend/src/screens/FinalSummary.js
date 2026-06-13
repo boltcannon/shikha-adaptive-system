@@ -6,6 +6,7 @@ import SimpleLoader from "../components/SimpleLoader"
 export default function FinalSummary({ onNavigate }) {
   const {
     sessionId,
+    studentId,
     studentProgress,
     unitInput,
   } = useUnit()
@@ -33,6 +34,25 @@ export default function FinalSummary({ onNavigate }) {
         provocation_observation : progress.provocation_observation || "",
       })
       setSummary(result)
+
+      if (studentId) {
+        try {
+          await api.saveCompletedUnit(studentId, {
+            chapter             : unitInput?.chapter,
+            grade               : unitInput?.grade,
+            subject             : unitInput?.subject,
+            context             : unitInput?.context,
+            exit_ticket_score   : progress.exit_ticket_score,
+            mastery_gate_result : progress.mastery_gate_result,
+            strong_subtopics    : progress.strong_subtopics    || [],
+            weak_subtopics      : progress.weak_subtopics      || [],
+            project_idea        : progress.project_idea        || "",
+            session_id          : sessionId,
+          })
+        } catch (e) {
+          console.log("Could not save to history")
+        }
+      }
     } catch (e) {
       setError("Could not generate your summary. Please try again.")
     }

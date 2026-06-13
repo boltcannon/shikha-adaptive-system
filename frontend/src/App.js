@@ -9,6 +9,7 @@ import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
 import NclReview from "./screens/NclReview"
 import FinalSummary from "./screens/FinalSummary"
+import MyLearning from "./screens/MyLearning"
 import Analysis from "./templates/Analysis"
 import AnalysisReview from "./templates/AnalysisReview"
 import Discussion from "./templates/Discussion"
@@ -102,6 +103,7 @@ function AppContent() {
       case "rac":             return <RAC onNavigate={navigateTo} />
       case "reflection":      return <Reflection onNavigate={navigateTo} />
       case "finalSummary":    return <FinalSummary onNavigate={navigateTo} />
+      case "myLearning":      return <MyLearning onNavigate={navigateTo} />
       default:                return <TeacherInput onNavigate={navigateTo} />
     }
   }
@@ -130,6 +132,21 @@ function AppContent() {
             }}>
               {currentUser.name}
             </span>
+          )}
+
+          {currentUser && (
+            <button
+              onClick={() => navigateTo("myLearning")}
+              style={{
+                background: "rgba(255,255,255,0.15)", color: "white",
+                border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
+                padding: "6px 10px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "12px",
+                minHeight: "34px", touchAction: "manipulation",
+              }}
+            >
+              {window.innerWidth > 480 ? "My Progress" : "📚"}
+            </button>
           )}
 
           {sessionId && (

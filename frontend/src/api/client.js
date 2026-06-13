@@ -217,6 +217,20 @@ export const api = {
     return r.json()
   },
 
+  saveCompletedUnit: async (studentId, data) => {
+    const r = await fetch(`${BASE_URL}/student/save-completed-unit`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ student_id: studentId, ...data }),
+    })
+    return r.json()
+  },
+
+  getStudentHistory: async (studentId) => {
+    const r = await fetch(`${BASE_URL}/student/${studentId}/history`)
+    return r.json()
+  },
+
   getRacSuggestions: async (sessionId) => {
     const r = await fetch(
       `${BASE_URL}/generate/rac-suggestions/${sessionId}`,

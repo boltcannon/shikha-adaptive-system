@@ -12,6 +12,8 @@ const SCREENS = [
   { key: "masteryGate",      label: "Mastery Gate",         phase: "checkpoint" },
   { key: "rac",              label: "Research & Creation",  phase: "transfer"   },
   { key: "reflection",       label: "Reflection",           phase: "transfer"   },
+  { key: "finalSummary",    label: "Final Summary",        phase: "student"    },
+  { key: "myLearning",      label: "My Learning",          phase: "student"    },
 ]
 
 const PHASE_COLORS = {
@@ -21,6 +23,7 @@ const PHASE_COLORS = {
   checkpoint : { bg: "#FADBD8", text: "#C0392B" },
   transfer   : { bg: "#D5F5E3", text: "#1E8449" },
   teacher    : { bg: "#E8DAEF", text: "#6C3483" },
+  student    : { bg: "#D6EAF8", text: "#1A5276" },
 }
 
 const DEFAULT_UNIT = {

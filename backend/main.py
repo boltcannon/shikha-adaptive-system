@@ -1054,6 +1054,92 @@ async def clear_cache():
     return {"message": f"Cleared {result.deleted_count} cached units"}
 
 
+@app.post("/student/save-completed-unit")
+async def save_completed_unit(data: dict = Body(default={})):
+    student_id = data.get("student_id")
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id required")
+
+    completed_unit = {
+        "completed_at"        : datetime.datetime.utcnow(),
+        "chapter"             : data.get("chapter"),
+        "grade"               : data.get("grade"),
+        "subject"             : data.get("subject"),
+        "context"             : data.get("context"),
+        "exit_ticket_score"   : data.get("exit_ticket_score"),
+        "mastery_gate_result" : data.get("mastery_gate_result"),
+        "strong_subtopics"    : data.get("strong_subtopics", []),
+        "weak_subtopics"      : data.get("weak_subtopics", []),
+        "project_idea"        : data.get("project_idea", ""),
+        "session_id"          : data.get("session_id"),
+    }
+
+    try:
+        students_collection.update_one(
+            {"student_id": student_id},
+            {
+                "$push": {"completed_units": completed_unit},
+                "$set" : {"updated_at": datetime.datetime.utcnow()},
+            },
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[WARN] Could not save completed unit: {e}")
+
+    return {"saved": True}
+
+
+@app.get("/student/{student_id}/history")
+async def get_student_history(student_id: str):
+    try:
+        student = students_collection.find_one(
+            {"student_id": student_id},
+            {"_id": 0},
+        )
+        if not student:
+            return {"completed_units": [], "stats": {}}
+
+        units = student.get("completed_units", [])
+
+        scores = [
+            u.get("exit_ticket_score")
+            for u in units
+            if u.get("exit_ticket_score") is not None
+        ]
+
+        from collections import Counter
+        all_weak   = []
+        all_strong = []
+        for u in units:
+            all_weak.extend(u.get("weak_subtopics",   []))
+            all_strong.extend(u.get("strong_subtopics", []))
+
+        weak_counts   = Counter(all_weak)
+        strong_counts = Counter(all_strong)
+
+        stats = {
+            "total_units_completed": len(units),
+            "avg_exit_score"       : round(sum(scores) / len(scores), 1) if scores else None,
+            "top_weak_topics"      : [k for k, _ in weak_counts.most_common(3)],
+            "top_strong_topics"    : [k for k, _ in strong_counts.most_common(3)],
+            "subjects_studied"     : list(set(u.get("subject", "") for u in units)),
+            "streak_days"          : 0,
+        }
+
+        # Sort most recent first; datetime objects serialise fine, strings sort lexically
+        def _sort_key(u):
+            v = u.get("completed_at", "")
+            return v.isoformat() if hasattr(v, "isoformat") else str(v)
+
+        return {
+            "completed_units": sorted(units, key=_sort_key, reverse=True),
+            "stats": stats,
+        }
+    except Exception as e:
+        print(f"[WARN] Could not get history: {e}")
+        return {"completed_units": [], "stats": {}}
+
+
 @app.post("/generate/final-summary/{session_id}")
 async def get_final_summary(session_id: str, data: dict = Body(default={})):
     session = get_session(session_id)
