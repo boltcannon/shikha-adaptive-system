@@ -2,12 +2,14 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   font-family: Arial, sans-serif;
   background: #F8F9FA;
   color: #2C3E50;
+  overflow-x: hidden;
 }
 
 .app-container {
@@ -34,6 +36,8 @@ body {
   font-size: 15px;
   cursor: pointer;
   font-family: Arial;
+  min-height: 48px;
+  touch-action: manipulation;
   transition: background 0.2s;
 }
 
@@ -55,6 +59,8 @@ body {
   font-size: 14px;
   cursor: pointer;
   font-family: Arial;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .btn-orange {
@@ -66,6 +72,8 @@ body {
   font-size: 15px;
   cursor: pointer;
   font-family: Arial;
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .btn-orange:disabled {
@@ -105,4 +113,36 @@ body {
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 16px;
+}
+
+/* ── Mobile overrides ─────────────────────────────── */
+
+/* Prevent iOS from zooming on input focus */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    padding: 16px 12px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .dark-card {
+    padding: 16px;
+  }
+
+  .heading-1 {
+    font-size: 22px;
+  }
+
+  .heading-2 {
+    font-size: 18px;
+  }
 }

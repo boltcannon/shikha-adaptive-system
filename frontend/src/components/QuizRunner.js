@@ -238,7 +238,7 @@ export default function QuizRunner({
             key={i}
             onClick={() => setCurrentIndex(i)}
             style={{
-              width: "32px", height: "32px", borderRadius: "50%",
+              width: "36px", height: "36px", borderRadius: "50%",
               border: `2px solid ${i === currentIndex ? "#E87722" : studentAnswers[i] ? "#1A5276" : "#BDC3C7"}`,
               background: i === currentIndex ? "#E87722" : studentAnswers[i] ? "#1A5276" : "white",
               color: (i === currentIndex || studentAnswers[i]) ? "white" : "#BDC3C7",
@@ -284,6 +284,7 @@ export default function QuizRunner({
                   borderRadius: "8px", padding: "12px 16px",
                   cursor: "pointer", fontFamily: "Arial",
                   fontSize: "14px", textAlign: "left",
+                  minHeight: "48px", touchAction: "manipulation",
                   transition: "all 0.15s",
                 }}
               >

@@ -73,7 +73,7 @@ export default function AuthScreen({ onNavigate }) {
   }
 
   return (
-    <div style={{ maxWidth: "440px", margin: "0 auto", paddingTop: "40px" }}>
+    <div style={{ maxWidth: "440px", margin: "0 auto", padding: "40px 16px 0" }}>
       {/* Logo */}
       <div style={{ textAlign: "center", marginBottom: "32px" }}>
         <p style={{

@@ -239,7 +239,8 @@ export default function TeacherInput({ onNavigate }) {
                 }}
                 disabled={noContext}
                 style={{
-                  padding: "5px 14px",
+                  padding: "8px 14px",
+                  minHeight: "36px",
                   borderRadius: "20px",
                   border: `2px solid ${
                     !noContext && form.context === ctx ? "#E87722" : "#BDC3C7"

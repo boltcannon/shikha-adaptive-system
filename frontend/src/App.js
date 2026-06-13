@@ -9,7 +9,7 @@ import UnitLoader from "./screens/UnitLoader"
 import StudentJoin from "./screens/StudentJoin"
 import Provocation from "./templates/Provocation"
 import NCL from "./templates/NCL"
-import NclReview from "./templates/NclReview"
+import NclReview from "./screens/NclReview"
 import Analysis from "./templates/Analysis"
 import AnalysisReview from "./templates/AnalysisReview"
 import Discussion from "./templates/Discussion"
@@ -138,49 +138,61 @@ function AppContent() {
     <>
       {/* ── Top nav bar ───────────────────────────────────── */}
       <div style={{
-        background: "#1A5276", padding: "12px 24px",
+        background: "#1A5276", padding: "10px 16px",
         display: "flex", justifyContent: "space-between", alignItems: "center",
         position: "sticky", top: 0, zIndex: 100,
+        boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
       }}>
         {/* Brand */}
-        <div>
+        <div style={{ minWidth: 0 }}>
           <span style={{
             color: "#E87722", fontWeight: "bold",
-            fontSize: "12px", fontFamily: "Arial", letterSpacing: "1px",
+            fontSize: "13px", fontFamily: "Arial", letterSpacing: "1px",
           }}>
-            SHIKHA ACADEMY
+            SHIKHA
           </span>
-          <span style={{ color: "white", fontSize: "14px", fontFamily: "Arial", marginLeft: "12px" }}>
-            Adaptive Learning Framework
-          </span>
+          {window.innerWidth > 480 && (
+            <span style={{ color: "white", fontSize: "13px", fontFamily: "Arial", marginLeft: "6px" }}>
+              Adaptive Learning
+            </span>
+          )}
         </div>
 
         {/* Right-side controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
-          {/* Student name in guest mode */}
-          {studentName && !currentUser && (
-            <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
+          {/* Student name in guest mode — hide on narrow screens */}
+          {studentName && !currentUser && window.innerWidth > 360 && (
+            <span style={{
+              color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Arial",
+              maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
               {studentName}
             </span>
           )}
 
           {/* Signed-in user name + sign out */}
           {currentUser && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", fontFamily: "Arial" }}>
-                {currentUser.name}
-              </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {window.innerWidth > 480 && (
+                <span style={{
+                  color: "rgba(255,255,255,0.8)", fontSize: "12px", fontFamily: "Arial",
+                  maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {currentUser.name}
+                </span>
+              )}
               <button
                 onClick={() => { logout(); navigateTo("auth") }}
                 style={{
                   background: "rgba(255,255,255,0.15)", color: "white",
                   border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                  padding: "4px 10px", cursor: "pointer",
+                  padding: "6px 10px", cursor: "pointer",
                   fontFamily: "Arial", fontSize: "12px",
+                  minHeight: "34px", touchAction: "manipulation",
                 }}
               >
-                Sign Out
+                {window.innerWidth > 480 ? "Sign Out" : "Out"}
               </button>
             </div>
           )}
@@ -192,11 +204,12 @@ function AppContent() {
               style={{
                 background: "rgba(255,255,255,0.15)", color: "white",
                 border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                padding: "6px 14px", cursor: "pointer",
+                padding: "6px 10px", cursor: "pointer",
                 fontFamily: "Arial", fontSize: "13px",
+                minHeight: "34px", touchAction: "manipulation",
               }}
             >
-              📝 Assessment
+              {window.innerWidth > 480 ? "📝 Assessment" : "📝"}
             </button>
           )}
 
@@ -207,11 +220,12 @@ function AppContent() {
               style={{
                 background: "rgba(255,255,255,0.15)", color: "white",
                 border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                padding: "6px 14px", cursor: "pointer",
+                padding: "6px 10px", cursor: "pointer",
                 fontFamily: "Arial", fontSize: "13px",
+                minHeight: "34px", touchAction: "manipulation",
               }}
             >
-              📊 Dashboard
+              {window.innerWidth > 480 ? "📊 Dashboard" : "📊"}
             </button>
           )}
 
@@ -222,11 +236,12 @@ function AppContent() {
               style={{
                 background: "rgba(255,255,255,0.15)", color: "white",
                 border: "1px solid rgba(255,255,255,0.3)", borderRadius: "6px",
-                padding: "6px 14px", cursor: "pointer",
-                fontFamily: "Arial", fontSize: "13px",
+                padding: "6px 10px", cursor: "pointer",
+                fontFamily: "Arial", fontSize: "12px",
+                minHeight: "34px", touchAction: "manipulation",
               }}
             >
-              ← New Unit
+              {window.innerWidth > 480 ? "← New Unit" : "+ New"}
             </button>
           )}
         </div>

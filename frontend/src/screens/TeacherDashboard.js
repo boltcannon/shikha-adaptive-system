@@ -873,6 +873,8 @@ export default function TeacherDashboard({ onBack }) {
   const [classCodeInput,  setClassCodeInput]  = useState("")
   const [filter,          setFilter]          = useState("all")
 
+  const isMobile = window.innerWidth <= 480
+
   useEffect(() => {
     loadMyClasses()
   }, []) // eslint-disable-line
@@ -1125,13 +1127,38 @@ export default function TeacherDashboard({ onBack }) {
               {activeTab === "final_report"    && <FinalReportTab     {...tabProps} />}
             </div>
 
-            {selectedStudent && (
+            {selectedStudent && !isMobile && (
               <StudentPanel
                 student={selectedStudent}
                 onClose={() => setSelectedStudent(null)}
               />
             )}
           </div>
+
+          {/* Mobile student panel — fixed bottom sheet */}
+          {selectedStudent && isMobile && (
+            <div
+              onClick={() => setSelectedStudent(null)}
+              style={{
+                position: "fixed", inset: "0",
+                background: "rgba(0,0,0,0.5)", zIndex: 200,
+              }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0,
+                  background: "white", borderRadius: "16px 16px 0 0",
+                  maxHeight: "75vh", overflowY: "auto",
+                }}
+              >
+                <StudentPanel
+                  student={selectedStudent}
+                  onClose={() => setSelectedStudent(null)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
