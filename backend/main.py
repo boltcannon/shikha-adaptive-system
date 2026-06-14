@@ -1054,6 +1054,41 @@ async def clear_cache():
     return {"message": f"Cleared {result.deleted_count} cached units"}
 
 
+@app.post("/student/progress")
+async def save_student_progress(data: dict = Body(default={})):
+    student_id = data.get("student_id")
+    progress   = data.get("progress", {})
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id required")
+    try:
+        progress_collection.update_one(
+            {"student_id": student_id},
+            {"$set": {
+                "student_id": student_id,
+                "progress"  : progress,
+                "updated_at": datetime.datetime.utcnow(),
+            }},
+            upsert=True,
+        )
+    except Exception as e:
+        print(f"[WARN] Could not save progress: {e}")
+    return {"saved": True}
+
+
+@app.get("/student/{student_id}/progress")
+async def get_student_progress(student_id: str):
+    try:
+        doc = progress_collection.find_one(
+            {"student_id": student_id}, {"_id": 0}
+        )
+        if not doc:
+            return {"progress": None}
+        return {"progress": doc.get("progress")}
+    except Exception as e:
+        print(f"[WARN] Could not get progress: {e}")
+        return {"progress": None}
+
+
 @app.post("/student/save-completed-unit")
 async def save_completed_unit(data: dict = Body(default={})):
     student_id = data.get("student_id")

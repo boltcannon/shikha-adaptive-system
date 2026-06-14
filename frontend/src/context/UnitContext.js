@@ -165,8 +165,13 @@ export function UnitProvider({ children }) {
           if (user.user_id) {
             setCurrentUser(user)
             setToken(savedToken)
+            // Ensure studentId is always synced with the authenticated user
+            setStudentId(user.user_id)
+            setStudentName(user.name)
+            localStorage.setItem("studentId",   user.user_id)
+            localStorage.setItem("studentName", user.name)
 
-            const savedStudentId   = localStorage.getItem("studentId")
+            const savedStudentId   = user.user_id
             const savedSessionId   = localStorage.getItem("sessionId")
             const savedProgressStr = localStorage.getItem("studentProgress")
 
@@ -223,15 +228,19 @@ export function UnitProvider({ children }) {
   const login = (userData, userToken) => {
     setCurrentUser(userData)
     setToken(userToken)
+    // Always set studentId from user_id — it's the student's permanent identity
+    setStudentId(userData.user_id)
+    setStudentName(userData.name)
     localStorage.setItem("token",       userToken)
     localStorage.setItem("currentUser", JSON.stringify(userData))
+    localStorage.setItem("studentId",   userData.user_id)
+    localStorage.setItem("studentName", userData.name)
 
-    const savedStudentId   = localStorage.getItem("studentId")
     const savedSessionId   = localStorage.getItem("sessionId")
     const savedProgressStr = localStorage.getItem("studentProgress")
 
-    if (savedStudentId && savedSessionId && savedProgressStr) {
-      _restoreStudentSession(savedStudentId, savedSessionId, savedProgressStr, userData.name)
+    if (savedSessionId && savedProgressStr) {
+      _restoreStudentSession(userData.user_id, savedSessionId, savedProgressStr, userData.name)
     }
   }
 
@@ -258,8 +267,7 @@ export function UnitProvider({ children }) {
 
   // ── Clear student state for new unit ─────────────────────
   const clearStudentSession = () => {
-    setStudentId(null)
-    setStudentName(null)
+    // studentId and studentName are the user's permanent auth identity — never clear them
     setUnitInput(null)
     setNclProgress({ completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" })
     setStudentProgress({
@@ -267,8 +275,6 @@ export function UnitProvider({ children }) {
       exit_ticket_score: null, mastery_gate_result: null,
       project_idea: "", reflection_done: false,
     })
-    localStorage.removeItem("studentId")
-    localStorage.removeItem("studentName")
     localStorage.removeItem("studentProgress")
     localStorage.removeItem("nclProgress")
     localStorage.removeItem("sessionId")

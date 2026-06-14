@@ -77,9 +77,9 @@ function AppContent() {
       reflection_done     : false,
     })
     localStorage.removeItem("sessionId")
-    localStorage.removeItem("studentId")
     localStorage.removeItem("studentProgress")
     localStorage.removeItem("nclProgress")
+    localStorage.removeItem("unitInput")
     setScreen("teacherInput")
   }
 
