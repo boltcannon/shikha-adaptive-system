@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { useUnit } from "../context/UnitContext"
 import { api } from "../api/client"
 import SimpleLoader from "../components/SimpleLoader"
@@ -16,6 +16,14 @@ export default function Provocation({ onNavigate }) {
 
   // Step 3 — one reflection textarea per scenario
   const [scenarioReflections, setScenarioReflections] = useState(["", "", ""])
+
+  // Step 3 — AI provocation feedback
+  const [provFeedback,  setProvFeedback]  = useState(null)
+  const [checkingProv,  setCheckingProv]  = useState(false)
+  const [showBeginBtn,  setShowBeginBtn]  = useState(false)
+
+  // Debounced auto-save for observation text
+  const saveTimer = useRef(null)
 
   // Scroll to top whenever step changes
   useEffect(() => {
@@ -36,6 +44,33 @@ export default function Provocation({ onNavigate }) {
 
   const updateReflection = (i, value) =>
     setScenarioReflections(prev => prev.map((v, idx) => idx === i ? value : v))
+
+  // Debounced save — fires 2 s after the student stops typing in Step 1
+  const debouncedSaveObservation = (value) => {
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      if (value.trim().length >= 10) {
+        saveStudentProgress({ provocation_observation: value, current_screen: "provocation" })
+      }
+    }, 2000)
+  }
+
+  // Step 3 — fetch AI acknowledgement of student's observation
+  const handleGetFeedback = async () => {
+    setCheckingProv(true)
+    try {
+      const result = await api.checkProvocation(
+        sessionId,
+        observationText,
+        scenarioReflections.filter(r => r.trim()),
+      )
+      if (result?.acknowledgement) setProvFeedback(result.acknowledgement)
+      setShowBeginBtn(true)
+    } catch {
+      setShowBeginBtn(true)  // if AI fails, just show Begin Learning
+    }
+    setCheckingProv(false)
+  }
 
   const handleBeginLearning = () => {
     addCompletedTemplate("provocation")
@@ -97,7 +132,10 @@ export default function Provocation({ onNavigate }) {
         </label>
         <textarea
           value={observationText}
-          onChange={e => setObservationText(e.target.value)}
+          onChange={e => {
+            setObservationText(e.target.value)
+            debouncedSaveObservation(e.target.value)
+          }}
           placeholder="Share your thoughts, patterns you spotted, questions you have..."
           rows={4}
           style={{
@@ -127,7 +165,10 @@ export default function Provocation({ onNavigate }) {
 
       <button
         className="btn-primary"
-        onClick={() => setStep(2)}
+        onClick={() => {
+          saveStudentProgress({ provocation_observation: observationText, current_screen: "provocation" })
+          setStep(2)
+        }}
         disabled={observationText.trim().length < 20}
         style={{
           width: "100%", padding: "14px",
@@ -251,20 +292,72 @@ export default function Provocation({ onNavigate }) {
                 ({answeredCount}/2 answered)
               </p>
             )}
-            <button
-              className="btn-primary"
-              onClick={handleBeginLearning}
-              disabled={!canProceed}
-              style={{
-                width: "100%", padding: "14px",
-                background: canProceed ? "#E87722" : "#BDC3C7",
-                cursor: canProceed ? "pointer" : "not-allowed",
-                border: "none", borderRadius: "8px", color: "white",
-                fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
-              }}
-            >
-              Begin Learning →
-            </button>
+
+            {/* Submit button — visible until AI feedback loads */}
+            {!provFeedback && !checkingProv && (
+              <button
+                className="btn-primary"
+                onClick={handleGetFeedback}
+                disabled={!canProceed}
+                style={{
+                  width: "100%", padding: "14px",
+                  background: canProceed ? "#E87722" : "#BDC3C7",
+                  cursor: canProceed ? "pointer" : "not-allowed",
+                  border: "none", borderRadius: "8px", color: "white",
+                  fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
+                }}
+              >
+                Submit My Observations →
+              </button>
+            )}
+
+            {/* AI thinking state */}
+            {checkingProv && (
+              <div style={{
+                background: "#EBF5FB", borderRadius: "10px",
+                padding: "16px", textAlign: "center",
+              }}>
+                <p style={{ color: "#1A5276", fontFamily: "Arial", fontSize: "14px" }}>
+                  Reading your observations...
+                </p>
+              </div>
+            )}
+
+            {/* AI feedback card */}
+            {provFeedback && (
+              <div style={{
+                background: "#D5F5E3", border: "1px solid #1E8449",
+                borderRadius: "10px", padding: "16px", marginBottom: "16px",
+              }}>
+                <p style={{
+                  fontSize: "12px", fontWeight: "bold", color: "#1E8449",
+                  fontFamily: "Arial", marginBottom: "8px",
+                }}>
+                  Your AI Teacher says:
+                </p>
+                <p style={{
+                  fontSize: "14px", color: "#2C3E50",
+                  fontFamily: "Arial", lineHeight: "1.7",
+                }}>
+                  {provFeedback}
+                </p>
+              </div>
+            )}
+
+            {/* Begin Learning — appears after feedback (or after AI failure) */}
+            {showBeginBtn && (
+              <button
+                className="btn-primary"
+                onClick={handleBeginLearning}
+                style={{
+                  width: "100%", padding: "14px",
+                  border: "none", borderRadius: "8px", color: "white",
+                  fontFamily: "Arial", fontSize: "14px", fontWeight: "bold",
+                }}
+              >
+                Begin Learning →
+              </button>
+            )}
           </>
         )
       })()}

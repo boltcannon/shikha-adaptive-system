@@ -147,6 +147,10 @@ export default function Reflection({ onNavigate }) {
             <textarea
               value={answers[i] || ""}
               onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+              onBlur={e => {
+                const updated = { ...answers, [i]: e.target.value }
+                saveStudentProgress({ reflection_answers: updated, current_screen: "reflection" })
+              }}
               placeholder="Write your reflection here..."
               rows={3}
               style={{

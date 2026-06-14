@@ -24,6 +24,7 @@ from framework.mat_engine import (
     generate_ncl,
     generate_ncl_review,
     generate_provocation,
+    generate_provocation_feedback,
     generate_rac_suggestions,
     generate_rac_template,
     generate_reflection,
@@ -653,6 +654,20 @@ async def check_analysis_responses(data: dict):
     )
 
     result = await asyncio.to_thread(call_claude, prompt, 800)
+    return result
+
+
+@app.post("/check/provocation/{session_id}")
+async def check_provocation(session_id: str, data: dict = Body(default={})):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    result = await generate_provocation_feedback(
+        session["unit_input"],
+        data.get("observation", ""),
+        data.get("reflections", []),
+        session.get("performance", {}),
+    )
     return result
 
 

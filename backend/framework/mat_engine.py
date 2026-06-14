@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from .prompts import (
     SHIKHA_SYSTEM_BASE,
     PROVOCATION_PROMPT,
+    PROVOCATION_FEEDBACK_PROMPT,
     NCL_PROMPT,
     NCL_REVIEW_PROMPT,
     ANSWER_CHECK_PROMPT,
@@ -377,3 +378,19 @@ async def generate_final_summary(
         provocation_observation = provocation_observation or "Not recorded",
     )
     return await asyncio.to_thread(call_claude, prompt, 800)
+
+
+async def generate_provocation_feedback(
+    unit_input,
+    observation,
+    reflections=None,
+    performance=None,
+):
+    system_base = build_system_base(unit_input, performance or {})
+    clean_refs  = [r for r in (reflections or []) if r and str(r).strip()]
+    prompt = PROVOCATION_FEEDBACK_PROMPT.format(
+        system_base = system_base,
+        observation = observation or "No observation written",
+        reflections = str(clean_refs[:3]),
+    )
+    return await asyncio.to_thread(call_claude, prompt, 250)

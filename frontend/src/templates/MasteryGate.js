@@ -65,12 +65,7 @@ export default function MasteryGate({ onNavigate }) {
     const pct        = masteryTotal > 0 ? masteryScore / masteryTotal : 1
     const nextScreen = pct >= 0.5 ? "rac" : "analysis_review"
     addCompletedTemplate("masteryGate")
-    saveStudentProgress({
-      completed_templates: [
-        ...(studentProgress?.completed_templates || []),
-        "masteryGate",
-      ],
-    })
+    saveStudentProgress({ current_screen: nextScreen })
     onNavigate(nextScreen)
   }
 
@@ -159,7 +154,7 @@ export default function MasteryGate({ onNavigate }) {
           const colour = score >= total * 0.8 ? "green"
                        : score >= total * 0.5 ? "amber"
                        : "red"
-          const nextScreen = score / total >= 0.5 ? "projectPlanning" : "analysis_review"
+          const nextScreen = score / total >= 0.5 ? "rac" : "analysis_review"
           setMasteryScore(score)
           setMasteryTotal(total)
           setMasteryDone(true)

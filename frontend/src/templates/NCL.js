@@ -181,7 +181,7 @@ export default function NCL({ onNavigate }) {
               addCompletedTemplate("ncl")
               updateNclProgress({ phase: "complete" })
               saveStudentProgress({
-                exit_ticket_score: `${exitScore}/${exitQuestions.length}`,
+                exit_ticket_score: exitScore,  // numeric, not string fraction
                 current_screen   : nextScreen,
               })
               onNavigate(nextScreen)

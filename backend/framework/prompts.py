@@ -761,3 +761,22 @@ Return ONLY valid JSON:
   "next_steps": ["string", "string"]
 }}
 """
+
+PROVOCATION_FEEDBACK_PROMPT = """
+{system_base}
+
+TEMPLATE: PROVOCATION
+A student just wrote their initial observation about real-world scenarios before studying the chapter.
+
+Their observation: "{observation}"
+Their scenario reflections: {reflections}
+
+Write a warm, brief response that:
+1. Acknowledges something specific they noticed — use their actual words
+2. Validates their thinking without saying whether it is right or wrong
+3. Builds genuine curiosity for what they are about to discover
+
+Return ONLY valid JSON:
+{{
+  "acknowledgement": "string — 2-3 warm sentences. Reference their actual words. Build excitement for learning."
+}}"""

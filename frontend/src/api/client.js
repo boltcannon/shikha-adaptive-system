@@ -138,6 +138,15 @@ export const api = {
     return r.json()
   },
 
+  checkProvocation: async (sessionId, observation, reflections) => {
+    const r = await fetch(`${BASE_URL}/check/provocation/${sessionId}`, {
+      method : "POST",
+      headers: { "Content-Type": "application/json" },
+      body   : JSON.stringify({ observation, reflections }),
+    })
+    return r.json()
+  },
+
   checkOpenEnded: async (sessionId, template, question, response) => {
     const r = await fetch(`${BASE_URL}/check/open-ended`, {
       method: "POST",

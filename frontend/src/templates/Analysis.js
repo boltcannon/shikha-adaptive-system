@@ -49,6 +49,14 @@ export default function Analysis({ onNavigate }) {
 
   const submitAnalysis = async () => {
     setStep("checking")
+    // Save analysis content before calling API so a browser close doesn't lose it
+    saveStudentProgress({
+      analysis_observations: observations.filter(o => o.trim()),
+      analysis_patterns    : patterns,
+      analysis_surprises   : surprises,
+      analysis_conclusion  : conclusion,
+      current_screen       : "analysis",
+    })
     try {
       const result = await api.checkAnalysis(sessionId, {
         observations: observations.filter(o => o.trim()).join(" | "),

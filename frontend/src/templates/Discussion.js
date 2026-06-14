@@ -30,7 +30,11 @@ export default function Discussion({ onNavigate }) {
 
   const handleContinue = () => {
     addCompletedTemplate("discussion")
-    saveStudentProgress({ current_screen: "masteryGate" })
+    saveStudentProgress({
+      current_screen      : "masteryGate",
+      discussion_position : selectedPosition,
+      discussion_reasoning: reasoning,
+    })
     onNavigate("masteryGate")
   }
 
@@ -84,7 +88,10 @@ export default function Discussion({ onNavigate }) {
           return (
             <div
               key={i}
-              onClick={() => setSelectedPosition(i)}
+              onClick={() => {
+                setSelectedPosition(i)
+                saveStudentProgress({ discussion_position: i, current_screen: "discussion" })
+              }}
               style={{
                 background: isSelected ? "#FEF9E7" : "white",
                 border: `2px solid ${isSelected ? "#E87722" : "#BDC3C7"}`,
