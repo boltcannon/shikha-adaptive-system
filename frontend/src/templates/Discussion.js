@@ -44,8 +44,10 @@ export default function Discussion({ onNavigate }) {
   const perspectives = data.perspectives || []
   const synthesisPrompts = data.synthesis_prompts || []
 
-  const canContinue = synthesisPrompts.length === 0 ||
+  const canContinue = selectedPosition !== null && (
+    synthesisPrompts.length === 0 ||
     synthesisPrompts.every((_, i) => (synthesisResponses[i] || "").trim().length >= 20)
+  )
 
   return (
     <div>

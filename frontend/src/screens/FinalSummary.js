@@ -53,6 +53,7 @@ export default function FinalSummary({ onNavigate }) {
             subject             : unitInput?.subject,
             context             : unitInput?.context,
             exit_ticket_score   : exitScore,
+            exit_ticket_total   : progress.exit_ticket_total ?? null,
             mastery_gate_result : progress.mastery_gate_result,
             strong_subtopics    : progress.strong_subtopics    || [],
             weak_subtopics      : progress.weak_subtopics      || [],

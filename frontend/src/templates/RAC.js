@@ -17,6 +17,7 @@ export default function RAC({ onNavigate }) {
   const {
     sessionId,
     saveStudentProgress,
+    addCompletedTemplate,
     studentProgress,
     studentName,
     unitInput,
@@ -87,7 +88,7 @@ export default function RAC({ onNavigate }) {
       const result = await api.getRacSuggestions(sessionId)
       if (result.suggestions) setSuggestions(result.suggestions)
     } catch (e) {
-      console.log("Could not load suggestions:", e)
+      console.error("Could not load suggestions:", e)
     }
     setLoadingSuggestions(false)
   }
@@ -181,17 +182,12 @@ export default function RAC({ onNavigate }) {
         sessionId, resolvedIdea, template.report_title, sections
       )
     } catch (e) {
-      console.log("Could not save artifact:", e)
+      console.error("Could not save artifact:", e)
     }
     setArtifact({ report_title: template.report_title, project_idea: resolvedIdea, sections })
     setPhase("artifact")
-    saveStudentProgress({
-      current_screen     : "reflection",
-      completed_templates: [
-        ...(studentProgress?.completed_templates || []),
-        "rac",
-      ],
-    })
+    addCompletedTemplate("rac")
+    saveStudentProgress({ current_screen: "reflection" })
     setSaving(false)
   }
 

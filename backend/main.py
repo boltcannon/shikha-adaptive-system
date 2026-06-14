@@ -1116,6 +1116,12 @@ async def save_completed_unit(data: dict = Body(default={})):
     except (TypeError, ValueError):
         exit_score = None
 
+    raw_total = data.get("exit_ticket_total")
+    try:
+        exit_total = int(raw_total) if raw_total is not None else None
+    except (TypeError, ValueError):
+        exit_total = None
+
     completed_unit = {
         "completed_at"        : datetime.datetime.utcnow(),
         "chapter"             : data.get("chapter"),
@@ -1123,6 +1129,7 @@ async def save_completed_unit(data: dict = Body(default={})):
         "subject"             : data.get("subject"),
         "context"             : data.get("context"),
         "exit_ticket_score"   : exit_score,
+        "exit_ticket_total"   : exit_total,
         "mastery_gate_result" : data.get("mastery_gate_result"),
         "strong_subtopics"    : data.get("strong_subtopics", []),
         "weak_subtopics"      : data.get("weak_subtopics", []),

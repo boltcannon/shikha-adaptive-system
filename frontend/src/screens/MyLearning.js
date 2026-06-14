@@ -98,7 +98,7 @@ export default function MyLearning({ onNavigate }) {
               },
               {
                 label: "Avg Exit Score",
-                value: stats.avg_exit_score ? `${stats.avg_exit_score}/5` : "—",
+                value: stats.avg_exit_score != null ? `${stats.avg_exit_score}` : "—",
                 color: "#1E8449", bg: "#D5F5E3", icon: "✓",
               },
               {
@@ -226,16 +226,20 @@ export default function MyLearning({ onNavigate }) {
 
                 {/* Score badges */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  {score != null ? (
-                    <span style={{
-                      background  : score >= 4 ? "#D5F5E3" : score >= 2 ? "#FEF9E7" : "#FADBD8",
-                      color       : score >= 4 ? "#1E8449" : score >= 2 ? "#B7950B" : "#C0392B",
-                      padding     : "3px 10px", borderRadius: "10px",
-                      fontSize    : "12px", fontWeight: "bold", fontFamily: "Arial",
-                    }}>
-                      Exit: {score}/5
-                    </span>
-                  ) : (
+                  {score != null ? (() => {
+                    const total = unit.exit_ticket_total || 10
+                    const pct   = score / total
+                    return (
+                      <span style={{
+                        background  : pct >= 0.8 ? "#D5F5E3" : pct >= 0.4 ? "#FEF9E7" : "#FADBD8",
+                        color       : pct >= 0.8 ? "#1E8449" : pct >= 0.4 ? "#B7950B" : "#C0392B",
+                        padding     : "3px 10px", borderRadius: "10px",
+                        fontSize    : "12px", fontWeight: "bold", fontFamily: "Arial",
+                      }}>
+                        Exit: {score}/{total}
+                      </span>
+                    )
+                  })() : (
                     <span style={{
                       background: "#F2F3F4", color: "#BDC3C7",
                       padding: "3px 10px", borderRadius: "10px",

@@ -68,7 +68,7 @@ export default function NCL({ onNavigate }) {
             if (r && r.subtopic_name) ncl[missing[i].key] = r
           })
         } catch (e) {
-          console.log("NCL on-demand generation failed:", e)
+          console.error("NCL on-demand generation failed:", e)
         }
       }
 
@@ -181,7 +181,8 @@ export default function NCL({ onNavigate }) {
               addCompletedTemplate("ncl")
               updateNclProgress({ phase: "complete" })
               saveStudentProgress({
-                exit_ticket_score: exitScore,  // numeric, not string fraction
+                exit_ticket_score: exitScore,
+                exit_ticket_total: exitQuestions.length,
                 current_screen   : nextScreen,
               })
               onNavigate(nextScreen)
@@ -222,6 +223,7 @@ export default function NCL({ onNavigate }) {
             setExitScore(score)
             saveStudentProgress({
               exit_ticket_score   : score,
+              exit_ticket_total   : exitQuestions.length,
               weak_subtopics      : analysis?.weakSubtopics  || [],
               strong_subtopics    : analysis?.strongSubtopics || [],
               wrong_questions_ncl : analysis?.wrongQuestions  || [],

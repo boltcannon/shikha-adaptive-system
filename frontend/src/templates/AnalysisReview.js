@@ -89,8 +89,8 @@ export default function AnalysisReview({ onNavigate }) {
         </button>
         <button
           onClick={() => {
-            saveStudentProgress({ current_screen: "projectPlanning" })
-            onNavigate("projectPlanning")
+            saveStudentProgress({ current_screen: "rac" })
+            onNavigate("rac")
           }}
           className="btn-secondary"
           style={{ flex: 1, padding: "14px" }}
