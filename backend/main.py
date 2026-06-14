@@ -1110,14 +1110,27 @@ async def save_completed_unit(data: dict = Body(default={})):
     }
 
     try:
-        students_collection.update_one(
+        # Try existing record in students_collection first (no upsert)
+        result = students_collection.update_one(
             {"student_id": student_id},
             {
                 "$push": {"completed_units": completed_unit},
                 "$set" : {"updated_at": datetime.datetime.utcnow()},
             },
-            upsert=True,
         )
+        if result.matched_count == 0:
+            # No existing student doc — save against the users_collection record
+            users_collection.update_one(
+                {"user_id": student_id},
+                {
+                    "$push": {"completed_units": completed_unit},
+                    "$set" : {"updated_at": datetime.datetime.utcnow()},
+                },
+                upsert=True,
+            )
+            print(f"[INFO] Saved completed unit to users_collection for {student_id}")
+        else:
+            print(f"[INFO] Saved completed unit to students_collection for {student_id}")
     except Exception as e:
         print(f"[WARN] Could not save completed unit: {e}")
 
@@ -1131,6 +1144,12 @@ async def get_student_history(student_id: str):
             {"student_id": student_id},
             {"_id": 0},
         )
+        if not student:
+            # Fall back to users_collection (units saved directly against user record)
+            student = users_collection.find_one(
+                {"user_id": student_id},
+                {"_id": 0},
+            )
         if not student:
             return {"completed_units": [], "stats": {}}
 

@@ -11,18 +11,26 @@ export default function MyLearning({ onNavigate }) {
 
   useEffect(() => {
     loadHistory()
-  }, []) // eslint-disable-line
+  }, [studentId]) // eslint-disable-line
 
   const loadHistory = async () => {
-    if (!studentId) {
+    const idToUse = studentId || currentUser?.user_id
+
+    console.log("MyLearning — studentId:", studentId)
+    console.log("MyLearning — currentUser.user_id:", currentUser?.user_id)
+    console.log("MyLearning — using ID:", idToUse)
+
+    if (!idToUse) {
+      console.error("MyLearning — no ID available for history fetch")
       setLoading(false)
       return
     }
     try {
-      const data = await api.getStudentHistory(studentId)
+      const data = await api.getStudentHistory(idToUse)
+      console.log("MyLearning — history data received:", data)
       setHistory(data)
     } catch (e) {
-      console.log("Could not load history")
+      console.error("MyLearning — could not load history:", e)
     }
     setLoading(false)
   }

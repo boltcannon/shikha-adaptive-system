@@ -9,6 +9,7 @@ export default function FinalSummary({ onNavigate }) {
     studentId,
     studentProgress,
     unitInput,
+    currentUser,
   } = useUnit()
 
   const [summary, setSummary] = useState(null)
@@ -23,6 +24,12 @@ export default function FinalSummary({ onNavigate }) {
   const loadSummary = async () => {
     setLoading(true)
     setError("")
+
+    console.log("FinalSummary — studentId:", studentId)
+    console.log("FinalSummary — currentUser:", currentUser?.user_id)
+    console.log("FinalSummary — sessionId:", sessionId)
+    console.log("FinalSummary — unitInput:", unitInput)
+
     try {
       const progress = studentProgress || {}
       const result = await api.generateFinalSummary(sessionId, {
@@ -35,9 +42,12 @@ export default function FinalSummary({ onNavigate }) {
       })
       setSummary(result)
 
-      if (studentId) {
+      const idToUse = studentId || currentUser?.user_id
+      console.log("FinalSummary — saving history with ID:", idToUse)
+
+      if (idToUse) {
         try {
-          await api.saveCompletedUnit(studentId, {
+          const saveResult = await api.saveCompletedUnit(idToUse, {
             chapter             : unitInput?.chapter,
             grade               : unitInput?.grade,
             subject             : unitInput?.subject,
@@ -49,11 +59,15 @@ export default function FinalSummary({ onNavigate }) {
             project_idea        : progress.project_idea        || "",
             session_id          : sessionId,
           })
+          console.log("FinalSummary — history saved:", saveResult)
         } catch (e) {
-          console.log("Could not save to history")
+          console.error("FinalSummary — failed to save history:", e)
         }
+      } else {
+        console.error("FinalSummary — no studentId available, history not saved")
       }
     } catch (e) {
+      console.error("FinalSummary — error:", e)
       setError("Could not generate your summary. Please try again.")
     }
     setLoading(false)
