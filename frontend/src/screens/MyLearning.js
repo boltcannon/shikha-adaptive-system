@@ -15,19 +15,12 @@ export default function MyLearning({ onNavigate }) {
 
   const loadHistory = async () => {
     const idToUse = studentId || currentUser?.user_id
-
-    console.log("MyLearning — studentId:", studentId)
-    console.log("MyLearning — currentUser.user_id:", currentUser?.user_id)
-    console.log("MyLearning — using ID:", idToUse)
-
     if (!idToUse) {
-      console.error("MyLearning — no ID available for history fetch")
       setLoading(false)
       return
     }
     try {
       const data = await api.getStudentHistory(idToUse)
-      console.log("MyLearning — history data received:", data)
       setHistory(data)
     } catch (e) {
       console.error("MyLearning — could not load history:", e)
@@ -233,7 +226,7 @@ export default function MyLearning({ onNavigate }) {
 
                 {/* Score badges */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  {score != null && (
+                  {score != null ? (
                     <span style={{
                       background  : score >= 4 ? "#D5F5E3" : score >= 2 ? "#FEF9E7" : "#FADBD8",
                       color       : score >= 4 ? "#1E8449" : score >= 2 ? "#B7950B" : "#C0392B",
@@ -241,6 +234,14 @@ export default function MyLearning({ onNavigate }) {
                       fontSize    : "12px", fontWeight: "bold", fontFamily: "Arial",
                     }}>
                       Exit: {score}/5
+                    </span>
+                  ) : (
+                    <span style={{
+                      background: "#F2F3F4", color: "#BDC3C7",
+                      padding: "3px 10px", borderRadius: "10px",
+                      fontSize: "12px", fontFamily: "Arial",
+                    }}>
+                      Score not recorded
                     </span>
                   )}
                   {mastery && (

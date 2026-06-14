@@ -10,6 +10,7 @@ export default function FinalSummary({ onNavigate }) {
     studentProgress,
     unitInput,
     currentUser,
+    performance,
   } = useUnit()
 
   const [summary, setSummary] = useState(null)
@@ -24,16 +25,17 @@ export default function FinalSummary({ onNavigate }) {
   const loadSummary = async () => {
     setLoading(true)
     setError("")
-
-    console.log("FinalSummary — studentId:", studentId)
-    console.log("FinalSummary — currentUser:", currentUser?.user_id)
-    console.log("FinalSummary — sessionId:", sessionId)
-    console.log("FinalSummary — unitInput:", unitInput)
-
     try {
       const progress = studentProgress || {}
+
+      // Read exit score from studentProgress first, fall back to performance context
+      const exitScore =
+        progress.exit_ticket_score ??
+        performance?.exitTicketScore ??
+        null
+
       const result = await api.generateFinalSummary(sessionId, {
-        exit_ticket_score       : progress.exit_ticket_score,
+        exit_ticket_score       : exitScore,
         mastery_gate_result     : progress.mastery_gate_result || "",
         strong_subtopics        : progress.strong_subtopics    || [],
         weak_subtopics          : progress.weak_subtopics      || [],
@@ -43,23 +45,20 @@ export default function FinalSummary({ onNavigate }) {
       setSummary(result)
 
       const idToUse = studentId || currentUser?.user_id
-      console.log("FinalSummary — saving history with ID:", idToUse)
-
       if (idToUse) {
         try {
-          const saveResult = await api.saveCompletedUnit(idToUse, {
+          await api.saveCompletedUnit(idToUse, {
             chapter             : unitInput?.chapter,
             grade               : unitInput?.grade,
             subject             : unitInput?.subject,
             context             : unitInput?.context,
-            exit_ticket_score   : progress.exit_ticket_score,
+            exit_ticket_score   : exitScore,
             mastery_gate_result : progress.mastery_gate_result,
             strong_subtopics    : progress.strong_subtopics    || [],
             weak_subtopics      : progress.weak_subtopics      || [],
             project_idea        : progress.project_idea        || "",
             session_id          : sessionId,
           })
-          console.log("FinalSummary — history saved:", saveResult)
         } catch (e) {
           console.error("FinalSummary — failed to save history:", e)
         }

@@ -1095,13 +1095,19 @@ async def save_completed_unit(data: dict = Body(default={})):
     if not student_id:
         raise HTTPException(status_code=400, detail="student_id required")
 
+    raw_score = data.get("exit_ticket_score")
+    try:
+        exit_score = int(raw_score) if raw_score is not None else None
+    except (TypeError, ValueError):
+        exit_score = None
+
     completed_unit = {
         "completed_at"        : datetime.datetime.utcnow(),
         "chapter"             : data.get("chapter"),
         "grade"               : data.get("grade"),
         "subject"             : data.get("subject"),
         "context"             : data.get("context"),
-        "exit_ticket_score"   : data.get("exit_ticket_score"),
+        "exit_ticket_score"   : exit_score,
         "mastery_gate_result" : data.get("mastery_gate_result"),
         "strong_subtopics"    : data.get("strong_subtopics", []),
         "weak_subtopics"      : data.get("weak_subtopics", []),
