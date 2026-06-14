@@ -9,6 +9,9 @@ export default function Reflection({ onNavigate }) {
     sessionId,
     generatedContent,
     studentProgress,
+    studentId,
+    currentUser,
+    unitInput,
     addCompletedTemplate,
     saveStudentProgress,
   } = useUnit()
@@ -51,9 +54,30 @@ export default function Reflection({ onNavigate }) {
     setLoading(false)
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     addCompletedTemplate("reflection")
-    saveStudentProgress({ current_screen: "done", reflection_done: true })
+
+    const idToUse = studentId || currentUser?.user_id
+    if (idToUse && sessionId) {
+      try {
+        await api.saveCompletedUnit(idToUse, {
+          chapter            : unitInput?.chapter            || "",
+          grade              : unitInput?.grade              || "",
+          subject            : unitInput?.subject            || "",
+          context            : unitInput?.context            || "",
+          exit_ticket_score  : studentProgress?.exit_ticket_score,
+          mastery_gate_result: studentProgress?.mastery_gate_result,
+          strong_subtopics   : studentProgress?.strong_subtopics  || [],
+          weak_subtopics     : studentProgress?.weak_subtopics    || [],
+          project_idea       : studentProgress?.project_idea      || "",
+          session_id         : sessionId,
+        })
+      } catch (e) {
+        console.error("Could not save to history:", e)
+      }
+    }
+
+    await saveStudentProgress({ current_screen: "done", reflection_done: true })
     onNavigate("finalSummary")
   }
 

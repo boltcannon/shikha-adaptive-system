@@ -337,6 +337,24 @@ async def create_unit(
     save_session_to_db(session_id, session_data)
     return {"session_id": session_id, "message": "Unit created successfully"}
 
+@app.get("/session/{session_id}")
+async def get_session_data(session_id: str):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    unit_input = session.get("unit_input")
+    if hasattr(unit_input, "model_dump"):
+        unit_input = unit_input.model_dump()
+    elif hasattr(unit_input, "__dict__"):
+        unit_input = unit_input.__dict__
+
+    return {
+        "session_id"       : session_id,
+        "unit_input"       : unit_input,
+        "generated_content": session.get("generated_content", {}),
+    }
+
 
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Generate ALL templates at once (with MongoDB cache)

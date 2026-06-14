@@ -85,6 +85,9 @@ export function UnitProvider({ children }) {
       currentProgress = studentProgress
     }
     const newProgress = { ...currentProgress, ...updates }
+    // Persist session_id in the progress document so it can be retrieved from
+    // MongoDB after logout (localStorage gets cleared on logout)
+    if (sessionId) newProgress.session_id = sessionId
     setStudentProgress(newProgress)
     localStorage.setItem("studentProgress", JSON.stringify(newProgress))
 
@@ -140,8 +143,15 @@ export function UnitProvider({ children }) {
       if (userName) setStudentName(userName)
       setSessionId(savedSessionId)
 
-      const contentResult = await api.generateAll(savedSessionId)
-      if (contentResult?.content) setGeneratedContent(contentResult.content)
+      try {
+        const sessionData = await api.getSession(savedSessionId)
+        if (sessionData?.generated_content) setGeneratedContent(sessionData.generated_content)
+        if (sessionData?.unit_input)        setUnitInput(sessionData.unit_input)
+      } catch {
+        // Fall back to regenerating all content
+        const contentResult = await api.generateAll(savedSessionId)
+        if (contentResult?.content) setGeneratedContent(contentResult.content)
+      }
 
       const target = savedProgress.current_screen
       const isInProgress = target &&
@@ -225,7 +235,7 @@ export function UnitProvider({ children }) {
   }, []) // eslint-disable-line
 
   // ── Login ─────────────────────────────────────────────────
-  const login = (userData, userToken) => {
+  const login = async (userData, userToken) => {
     setCurrentUser(userData)
     setToken(userToken)
     // Always set studentId from user_id — it's the student's permanent identity
@@ -236,11 +246,54 @@ export function UnitProvider({ children }) {
     localStorage.setItem("studentId",   userData.user_id)
     localStorage.setItem("studentName", userData.name)
 
+    try {
+      const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000"
+      const r = await fetch(`${BASE_URL}/student/${userData.user_id}/progress`)
+      if (r.ok) {
+        const data     = await r.json()
+        const progress = data.progress
+
+        const hasActiveSession =
+          progress &&
+          progress.current_screen &&
+          progress.current_screen !== "teacherInput" &&
+          progress.current_screen !== "finalSummary" &&
+          progress.current_screen !== "done" &&
+          progress.completed_templates?.length > 0
+
+        if (hasActiveSession) {
+          setStudentProgress(progress)
+          localStorage.setItem("studentProgress", JSON.stringify(progress))
+
+          // Retrieve session_id stored in progress doc, or fall back to localStorage
+          const savedSessionId = progress.session_id || localStorage.getItem("sessionId")
+          if (savedSessionId) {
+            setSessionId(savedSessionId)
+            localStorage.setItem("sessionId", savedSessionId)
+            try {
+              const sessionData = await api.getSession(savedSessionId)
+              if (sessionData?.generated_content) setGeneratedContent(sessionData.generated_content)
+              if (sessionData?.unit_input)        setUnitInput(sessionData.unit_input)
+            } catch {
+              console.log("Could not restore session content on login")
+            }
+          }
+
+          setResumeScreen("welcomeBack")
+          return
+        }
+      }
+    } catch {
+      console.log("Could not check progress on login")
+    }
+
+    // No active session in MongoDB — try localStorage as fallback
     const savedSessionId   = localStorage.getItem("sessionId")
     const savedProgressStr = localStorage.getItem("studentProgress")
-
     if (savedSessionId && savedProgressStr) {
       _restoreStudentSession(userData.user_id, savedSessionId, savedProgressStr, userData.name)
+    } else {
+      setResumeScreen("teacherInput")
     }
   }
 
@@ -253,6 +306,7 @@ export function UnitProvider({ children }) {
     setGeneratedContent(null)
     setStudentId(null)
     setStudentName(null)
+    setResumeScreen(null)
     setNclProgress({ completedSubtopics: [], currentSubtopicIndex: 0, phase: "learning" })
     setStudentProgress({
       current_screen      : "teacherInput",

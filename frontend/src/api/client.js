@@ -240,6 +240,12 @@ export const api = {
     return r.json()
   },
 
+  getSession: async (sessionId) => {
+    const r = await fetch(`${BASE_URL}/session/${sessionId}`)
+    if (!r.ok) return null
+    return r.json()
+  },
+
   getRacSuggestions: async (sessionId) => {
     const r = await fetch(
       `${BASE_URL}/generate/rac-suggestions/${sessionId}`,

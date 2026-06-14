@@ -33,7 +33,7 @@ function AppContent() {
     setUnitInput, setGeneratedContent,
     setStudentProgress, setNclProgress,
     currentUser, authLoading, logout,
-    resumeScreen,
+    resumeScreen, setResumeScreen,
   } = useUnit()
 
   const [screen, setScreen] = useState("auth")
@@ -55,6 +55,7 @@ function AppContent() {
     if (!authLoading && currentUser) {
       if (resumeScreen) {
         setScreen(resumeScreen)
+        setResumeScreen(null)
       } else if (screen === "auth") {
         setScreen("teacherInput")
       }
