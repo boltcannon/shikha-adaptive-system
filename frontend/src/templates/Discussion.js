@@ -44,9 +44,13 @@ export default function Discussion({ onNavigate }) {
   const perspectives = data.perspectives || []
   const synthesisPrompts = data.synthesis_prompts || []
 
+  const filledSynthesisCount = synthesisPrompts.filter(
+    (_, i) => (synthesisResponses[i] || "").trim().length >= 10
+  ).length
+
   const canContinue = selectedPosition !== null && (
     synthesisPrompts.length === 0 ||
-    synthesisPrompts.every((_, i) => (synthesisResponses[i] || "").trim().length >= 20)
+    filledSynthesisCount >= Math.min(2, synthesisPrompts.length)
   )
 
   return (
@@ -162,7 +166,7 @@ export default function Discussion({ onNavigate }) {
           </p>
           {synthesisPrompts.map((prompt, i) => {
             const charCount = (synthesisResponses[i] || "").trim().length
-            const met = charCount >= 20
+            const met = charCount >= 10
             return (
               <div key={i} style={{ marginBottom: "16px" }}>
                 <p style={{ fontFamily: "Arial", fontSize: "13px", color: "#2C3E50", marginBottom: "6px", lineHeight: "1.5" }}>
@@ -188,7 +192,7 @@ export default function Discussion({ onNavigate }) {
                   textAlign: "right",
                   marginTop: "3px"
                 }}>
-                  {met ? "✓ Good answer" : `${charCount}/20 minimum characters`}
+                  {met ? "✓ Good answer" : `${charCount}/10 minimum characters`}
                 </p>
               </div>
             )
@@ -204,8 +208,9 @@ export default function Discussion({ onNavigate }) {
           textAlign: "center",
           marginBottom: "8px"
         }}>
-          Please answer all synthesis questions before continuing.
-          Each answer needs at least a sentence.
+          {selectedPosition === null
+            ? "Select a perspective first."
+            : `Answer at least ${Math.min(2, synthesisPrompts.length)} synthesis questions (10+ characters each).`}
         </p>
       )}
       <button
