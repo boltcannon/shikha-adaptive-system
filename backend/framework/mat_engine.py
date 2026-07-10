@@ -1,8 +1,8 @@
-import anthropic
 import asyncio
 import json
 import os
 from pathlib import Path
+from urllib import error, request
 from dotenv import load_dotenv
 from .prompts import (
     SHIKHA_SYSTEM_BASE,
@@ -29,21 +29,15 @@ from .prompts import (
 _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
-# Lazy client — resolved after .env is loaded
-_client: anthropic.Anthropic | None = None
 
-
-def get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "ANTHROPIC_API_KEY is not set. "
-                f"Add it to {_ENV_PATH}"
-            )
-        _client = anthropic.Anthropic(api_key=api_key)
-    return _client
+def get_gemini_api_key() -> str:
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. "
+            f"Add it to {_ENV_PATH} or your deployment environment."
+        )
+    return api_key
 
 
 def build_system_base(unit_input, performance={}):
@@ -73,14 +67,50 @@ def build_system_base(unit_input, performance={}):
 
 
 def call_claude(prompt, max_tokens=2000):
-    response = get_client().messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
+    api_key = get_gemini_api_key()
+    model = os.getenv("GEMINI_MODEL", "gemini-3-flash")
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        f"?key={api_key}"
     )
-    text = response.content[0].text
-    # Strip markdown code fences if present
-    text = text.strip()
+    payload = {
+        "contents": [
+            {
+                "parts": [{"text": prompt}],
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    req = request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=60) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", "ignore")
+        try:
+            err_body = json.loads(raw)
+            message = err_body.get("error", {}).get("message", raw)
+        except json.JSONDecodeError:
+            message = raw or str(exc)
+        raise RuntimeError(message) from exc
+
+    candidates = body.get("candidates") or []
+    if not candidates:
+        raise RuntimeError("Gemini returned no candidates")
+
+    parts = candidates[0].get("content", {}).get("parts") or []
+    text = "".join(part.get("text", "") for part in parts).strip()
+    if not text:
+        raise RuntimeError("Gemini returned an empty response")
+
     if text.startswith("```json"):
         text = text[7:]
     if text.startswith("```"):

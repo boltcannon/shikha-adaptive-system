@@ -528,9 +528,21 @@ async def get_provocation(session_id: str):
     gc = session.get("generated_content", {})
     if gc.get("provocation"):
         return gc["provocation"]
-    return await generate_provocation(
-        session["unit_input"], session["performance"]
-    )
+    try:
+        return await generate_provocation(
+            session["unit_input"], session["performance"]
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        message = str(exc)
+        print(f"[ERROR] Failed to generate provocation for {session_id}: {message}")
+        if "credit balance is too low" in message.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Provocation generation is temporarily unavailable because the Anthropic API account has no credits."
+            ) from exc
+        raise HTTPException(status_code=500, detail="Failed to generate provocation") from exc
 
 
 @app.post("/generate/ncl/{session_id}")
